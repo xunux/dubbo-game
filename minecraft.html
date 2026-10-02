@@ -883,36 +883,37 @@
   }
   // 49~55 工具：镐（木/石/铁/钻石）+ 剑（木/铁/钻石）
   function drawPick(ti, head, dark, light) {
-    // 镐头：顶部拱形 "∩"，两端下垂
-    rect(ti, 8, 10, 3, 3, head);
-    rect(ti, 10, 7, 4, 3, head);
-    rect(ti, 13, 4, 6, 3, head);
-    rect(ti, 18, 3, 5, 3, head);
-    rect(ti, 22, 4, 4, 3, head);
-    rect(ti, 25, 6, 3, 4, head);
-    rect(ti, 27, 9, 2, 4, head);
-    // 内缘阴影
-    rect(ti, 11, 10, 3, 1, dark); rect(ti, 14, 7, 4, 1, dark);
-    rect(ti, 19, 6, 3, 1, dark); rect(ti, 23, 7, 3, 1, dark);
-    rect(ti, 26, 10, 2, 1, dark);
-    // 顶棱高光
-    rect(ti, 15, 3, 7, 1, light);
-    // 柄：从拱心向左下斜伸
-    for (let i = 0; i < 12; i++) rect(ti, 17 - i, 9 + i, 3, 2, i % 3 ? '#6b4a2a' : '#7d5834');
-    px(ti, 18, 9, '#8a6238'); px(ti, 19, 8, '#8a6238');
+    // 镐头：圆拱 + 两端渐细长尖（左尖、右尖下垂），拱顶收窄出弧度
+    rect(ti, 15, 3, 3, 3, head);              // 拱顶
+    rect(ti, 12, 3, 3, 3, head);              // 顶左
+    rect(ti, 18, 4, 3, 3, head);              // 顶右
+    rect(ti, 10, 5, 3, 3, head);              // 左肩
+    rect(ti, 21, 7, 2, 3, head);              // 右肩（平滑过渡）
+    rect(ti, 8, 7, 2, 3, head);               // 左外弯
+    rect(ti, 6, 9, 2, 3, head);               // 左尖（渐细下垂）
+    rect(ti, 5, 11, 2, 4, head);
+    rect(ti, 23, 10, 2, 3, head);             // 右尖（渐细下垂）
+    rect(ti, 24, 12, 2, 4, head);
+    rect(ti, 13, 6, 3, 1, dark);              // 拱内缘阴影
+    rect(ti, 19, 7, 3, 1, dark);
+    rect(ti, 14, 3, 4, 1, light);             // 拱顶高光
+    px(ti, 17, 6, head);                      // 补柄拱连接
+    // 柄：从拱心斜插到左下角
+    for (let i = 0; i < 16; i++) rect(ti, 17 - i, 7 + i, 3, 3, i % 3 ? '#6b4a2a' : '#7d5834');
   }
   function drawSword(ti, blade, light, dark) {
-    for (let i = 0; i < 18; i++) {          // 刃身：左下 → 右上
-      rect(ti, 7 + i, 24 - i, 2, 2, blade);
-      px(ti, 9 + i, 24 - i, light);          // 刃口高光
+    for (let i = 0; i < 15; i++) {            // 刃身：右上 → 左下
+      rect(ti, 24 - i, 6 + i, 3, 3, blade);
+      rect(ti, 24 - i, 6 + i, 2, 1, light);   // 左上刃口高光（连续）
+      px(ti, 26 - i, 8 + i, dark);            // 右下刃背阴影
     }
-    rect(ti, 24, 6, 2, 2, blade);            // 刃端
-    rect(ti, 24, 3, 3, 3, light);            // 剑尖
-    rect(ti, 4, 18, 3, 2, '#8a6a3f');        // 护手（垂直于刃 ↘）
-    rect(ti, 6, 20, 3, 2, '#8a6a3f');
-    rect(ti, 8, 22, 3, 2, '#8a6a3f');
-    for (let i = 0; i < 4; i++) rect(ti, 5 - i, 24 + i, 2, 2, '#4a3520');   // 柄 ↙
-    rect(ti, 1, 28, 3, 3, '#6b4a2a');        // 柄尾
+    rect(ti, 27, 3, 2, 2, light);             // 剑尖（锥形）
+    rect(ti, 26, 4, 2, 2, light);
+    // 护手：垂直于刃身 ↘
+    for (const [x, y] of [[6, 16], [9, 19], [12, 22]]) rect(ti, x, y, 3, 3, '#5d4a3a');
+    // 柄：延续刃轴 ↙，末端柄尾
+    for (let i = 0; i < 4; i++) rect(ti, 9 - i, 22 + i, 3, 3, i % 2 ? '#6b4a2a' : '#7d5834');
+    rect(ti, 3, 27, 3, 3, '#4a3520');
   }
   drawPick(49, '#a5793f', '#7c5a30', '#c49a63');     // 木镐
   drawPick(50, '#8a8a8a', '#6e6e6e', '#ababab');     // 石镐
@@ -3731,7 +3732,19 @@
     toggleHelp,
     music: () => ({ on: musicOn, vol: musicVol, style: cur, stats: { ...musicStats }, ctx: !!audioCtx }),
     toggleMusic, musicReset: () => { musicStats.notes = 0; musicStats.pads = 0; },
-    sndTest: (id, kind) => blockSnd(id, kind), sndFam: id => SND_OF[id] || 'stone?' };
+    sndTest: (id, kind) => blockSnd(id, kind), sndFam: id => SND_OF[id] || 'stone?',
+    showTiles: (ids, z = 5) => {   // 调试：放大显示图集贴图便于检查
+      document.getElementById('__tileStrip')?.remove();
+      const c = document.createElement('canvas');
+      c.id = '__tileStrip';
+      c.width = ids.length * 32 * z + 16; c.height = 32 * z + 16;
+      c.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:999;background:#3a3a3a;border:4px solid #1c1c1c';
+      const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+      ids.forEach((id, i) => x.drawImage(atlasCanvas, id * TILE, 0, TILE, TILE, i * 32 * z + 8, 8, 32 * z, 32 * z));
+      document.body.appendChild(c);
+      return 'shown';
+    },
+    hideTiles: () => { document.getElementById('__tileStrip')?.remove(); return 'hidden'; } };
   </script>
 </body>
 </html>
