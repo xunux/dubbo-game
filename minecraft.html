@@ -147,6 +147,8 @@
     border: none; border-radius: 5px; cursor: pointer; background: #3a7d2c; color: #fff; }
   #inventory .recipe button:disabled { background: #555; cursor: not-allowed; }
   #inventory .hint { margin-top: 10px; font-size: 11px; color: #8aa3c0; }
+  .btn.tab { background: #4a5568; padding: 2px 12px; font-size: 12px; }
+  .btn.tab.on { background: #3a7d2c; }
 </style>
 </head>
 <body>
@@ -172,8 +174,12 @@
 
   <div id="inventory">
     <div class="panel">
-      <h2>🧰 物品库 / 合成台</h2>
-      <div class="sub" id="invSub">点击方块放入当前手持栏位</div>
+      <h2>🧰 背包 / 合成台</h2>
+      <div class="sub">
+        <button class="btn tab on" id="bagTab" style="padding:2px 12px;font-size:12px">🎒 背包</button>
+        <button class="btn tab" id="allTab" style="padding:2px 12px;font-size:12px">📦 图鉴</button>
+        <span id="invSub" style="margin-left:6px">你收集到的物品 · 点击放入手持栏位</span>
+      </div>
       <div class="cols">
         <div id="equipCol">
           <div class="eslot" data-slot="head" title="头盔"></div>
@@ -897,9 +903,8 @@
     rect(ti, 13, 6, 3, 1, dark);              // 拱内缘阴影
     rect(ti, 19, 7, 3, 1, dark);
     rect(ti, 14, 3, 4, 1, light);             // 拱顶高光
-    px(ti, 17, 6, head);                      // 补柄拱连接
-    // 柄：从拱心斜插到左下角
-    for (let i = 0; i < 16; i++) rect(ti, 17 - i, 7 + i, 3, 3, i % 3 ? '#6b4a2a' : '#7d5834');
+    // 柄：从拱心正下方 (14,6) 斜插到左下角（与拱顶中心对齐）
+    for (let i = 0; i < 13; i++) rect(ti, 14 - i, 6 + i, 3, 3, i % 3 ? '#6b4a2a' : '#7d5834');
   }
   function drawSword(ti, blade, light, dark) {
     for (let i = 0; i < 15; i++) {            // 刃身：右上 → 左下
@@ -909,6 +914,7 @@
     }
     rect(ti, 27, 3, 2, 2, light);             // 剑尖（锥形）
     rect(ti, 26, 4, 2, 2, light);
+    px(ti, 25, 5, light);                      // 补剑尖与刃身之间的缺像素
     // 护手：垂直于刃身 ↘
     for (const [x, y] of [[6, 16], [9, 19], [12, 22]]) rect(ti, x, y, 3, 3, '#5d4a3a');
     // 柄：延续刃轴 ↙，末端柄尾
@@ -3430,6 +3436,18 @@
   }
   // 物品库
   const invCells = [];
+  // 背包 / 图鉴切换：背包只显示收集到的物品（生存味），图鉴显示全部
+  let bagMode = true;
+  const bagTabEl = document.getElementById('bagTab');
+  const allTabEl = document.getElementById('allTab');
+  const invSubEl = document.getElementById('invSub');
+  function applyInvMode() {
+    bagTabEl.classList.toggle('on', bagMode);
+    allTabEl.classList.toggle('on', !bagMode);
+    refreshInventoryUI();
+  }
+  bagTabEl.addEventListener('click', e => { e.stopPropagation(); bagMode = true; applyInvMode(); });
+  allTabEl.addEventListener('click', e => { e.stopPropagation(); bagMode = false; applyInvMode(); });
   ITEMS.forEach(id => {
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -3469,11 +3487,17 @@
     craftRows.push({ r, btn });
   });
   function refreshInventoryUI() {
+    let owned = 0;
     invCells.forEach(({ id, cell, cnt }) => {
       const n = invCount(id);
       cnt.textContent = n > 0 ? n : '';
       cell.classList.toggle('zero', n <= 0);
+      cell.style.display = (bagMode && n <= 0) ? 'none' : '';
+      if (n > 0) owned++;
     });
+    invSubEl.textContent = bagMode
+      ? (owned ? `${owned} 种物品 · 点击放入手持栏位` : '背包空空如也，去挖掘、打怪收集物品吧！')
+      : '图鉴：游戏内全部物品';
     craftRows.forEach(({ r, btn }) => { btn.disabled = !canCraft(r); });
   }
   // 装备栏 UI
