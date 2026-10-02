@@ -288,7 +288,7 @@
     WOOL:21, COAL_ORE:22, IRON_ORE:23, GOLD_ORE:24, DIAMOND_ORE:25,
     STONE_BRICK:26, MOSSY_COBBLE:27, CRAFT_TABLE:28, NETHERRACK:29, SOUL_SAND:30,
     NETHER_BRICK:31, QUARTZ_ORE:32, QUARTZ:33, BLACKSTONE:34, CRIMSON_PLANK:35,
-    WARPED_PLANK:36, MAGMA:37, END_STONE:38, PURPUR:39, LAVA:40 };
+    WARPED_PLANK:36, MAGMA:37, END_STONE:38, PURPUR:39, LAVA:40, NOTE:41 };
 
   // tiles=[顶,侧,底]
   const BLOCKS = [
@@ -333,6 +333,7 @@
     { name:'末地石',   tiles:[44,44,44], solid:true, opaque:true },
     { name:'紫珀块',   tiles:[45,45,45], solid:true, opaque:true },
     { name:'岩浆',     tiles:[46,46,46], solid:false, opaque:false, liquid:true, bucket:'lava' },
+    { name:'音符盒',   tiles:[69,70,8],  solid:true, opaque:true },
   ];
 
   const ITEMS = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.MOSSY_COBBLE, B.STONE_BRICK, B.SAND,
@@ -340,7 +341,7 @@
     B.BOOKSHELF, B.CRAFT_TABLE, B.PUMPKIN, B.GLOWSTONE, B.WOOL, B.TNT,
     B.COAL_ORE, B.IRON_ORE, B.GOLD_ORE, B.DIAMOND_ORE,
     B.NETHERRACK, B.SOUL_SAND, B.NETHER_BRICK, B.QUARTZ_ORE, B.QUARTZ, B.BLACKSTONE,
-    B.CRIMSON_PLANK, B.WARPED_PLANK, B.MAGMA, B.END_STONE, B.PURPUR, 101, 102,
+    B.CRIMSON_PLANK, B.WARPED_PLANK, B.MAGMA, B.END_STONE, B.PURPUR, B.NOTE, 101, 102,
     110, 111, 112, 113, 114, 115, 116, 120, 121, 122, 123, 124, 125, 126, 127,
     128, 129, 130, 131, 132];
 
@@ -386,7 +387,7 @@
   const HARDNESS = {
     [B.GRASS]: .45, [B.DIRT]: .4, [B.SAND]: .35, [B.SANDSTONE]: .65, [B.STONE]: .9,
     [B.COBBLE]: .9, [B.MOSSY_COBBLE]: .9, [B.STONE_BRICK]: .95, [B.BRICK]: .95,
-    [B.LOG]: .6, [B.PLANK]: .6, [B.CRAFT_TABLE]: .6, [B.BOOKSHELF]: .5,
+    [B.LOG]: .6, [B.PLANK]: .6, [B.CRAFT_TABLE]: .6, [B.BOOKSHELF]: .5, [B.NOTE]: .6,
     [B.LEAVES]: .15, [B.GLASS]: .2, [B.ICE]: .3, [B.SNOW]: .2, [B.WOOL]: .3,
     [B.COAL_ORE]: 1.1, [B.IRON_ORE]: 1.3, [B.GOLD_ORE]: 1.3, [B.DIAMOND_ORE]: 1.5,
     [B.QUARTZ_ORE]: 1.1, [B.NETHERRACK]: .4, [B.SOUL_SAND]: .4, [B.NETHER_BRICK]: .95,
@@ -400,6 +401,7 @@
   const RECIPES = [
     { in: [[B.LOG, 1]],                      out: [B.PLANK, 4] },
     { in: [[B.PLANK, 4]],                    out: [B.CRAFT_TABLE, 1] },
+    { in: [[B.PLANK, 4], [B.QUARTZ, 1]],     out: [B.NOTE, 1] },
     { in: [[B.COBBLE, 1]],                   out: [B.STONE, 1] },
     { in: [[B.STONE, 4]],                    out: [B.STONE_BRICK, 4] },
     { in: [[B.COBBLE, 4]],                   out: [B.MOSSY_COBBLE, 4] },
@@ -979,6 +981,19 @@
   drawHelmet(64, ...TIER_COL.netherite); drawChest(65, ...TIER_COL.netherite);
   drawLegs(66, ...TIER_COL.netherite);   drawBoots(67, ...TIER_COL.netherite);
   drawIngot(68, '#584850', '#3a3038', '#88707c');
+
+  // 69/70 音符盒：顶=木板+音孔圆，侧=木板+八分音符
+  paintPlank(69, ['#a5793f', '#b08448', '#ba8e50'], '#7c5a30');
+  rect(69, 11, 11, 10, 10, '#5a4634');          // 音孔外圈
+  rect(69, 13, 13, 6, 6, '#241c14');            // 音孔
+  px(69, 12, 12, '#8a6a44'); px(69, 19, 12, '#8a6a44');
+  px(69, 12, 19, '#8a6a44'); px(69, 19, 19, '#8a6a44');
+  paintPlank(70, ['#a5793f', '#b08448', '#ba8e50'], '#7c5a30');
+  rect(70, 11, 18, 6, 4, '#2a2118');            // 符头
+  rect(70, 11, 20, 6, 2, '#241c14');
+  rect(70, 15, 7, 2, 12, '#2a2118');            // 符干
+  rect(70, 17, 7, 3, 2, '#2a2118');             // 符尾
+  px(70, 20, 9, '#2a2118'); px(70, 21, 10, '#2a2118');
 
   const tileAvgColor = [];
   for (let ti = 0; ti < NTILES; ti++) {
@@ -2527,7 +2542,7 @@
       B.BLACKSTONE, B.END_STONE, B.PURPUR, B.OBSIDIAN, B.QUARTZ, B.SANDSTONE,
       B.BEDROCK, B.MAGMA, B.GLOWSTONE], 'stone'],
     [[B.COAL_ORE, B.IRON_ORE, B.GOLD_ORE, B.DIAMOND_ORE, B.QUARTZ_ORE], 'ore'],
-    [[B.LOG, B.PLANK, B.CRAFT_TABLE, B.BOOKSHELF, B.PUMPKIN, B.CRIMSON_PLANK, B.WARPED_PLANK], 'wood'],
+    [[B.LOG, B.PLANK, B.CRAFT_TABLE, B.BOOKSHELF, B.PUMPKIN, B.CRIMSON_PLANK, B.WARPED_PLANK, B.NOTE], 'wood'],
     [[B.GRASS, B.DIRT, B.SAND, B.SOUL_SAND, B.SNOW], 'soft'],
     [[B.GLASS, B.ICE], 'glass'],
     [[B.LEAVES, B.WOOL, B.TNT], 'leaf']
@@ -2553,6 +2568,24 @@
   const hitSnd = () => { thump(190, .1, .2); noiseHit(.16, .06, 650, 1); };
   // 进食：三声脆嚼
   const munchSnd = () => { noiseHit(.12, .05, 800, 1); noiseHit(.12, .05, 650, 1, .13); noiseHit(.13, .06, 720, 1, .27); };
+  // 电钢琴音色（音符盒用）：走主输出，不受音乐开关影响
+  function playPling(freq, vel = 1) {
+    if (!audioCtx) return;
+    try {
+      const t = audioCtx.currentTime;
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(.15 * vel, t + .008);
+      g.gain.exponentialRampToValueAtTime(.0004, t + .9);
+      g.connect(audioCtx.destination);
+      for (const [mult, amp] of [[1, 1], [2, .3], [4, .07]]) {
+        const o = audioCtx.createOscillator(), og = audioCtx.createGain();
+        o.type = 'sine'; o.frequency.value = freq * mult; og.gain.value = amp;
+        o.connect(og).connect(g);
+        o.start(t); o.stop(t + .95);
+      }
+    } catch (e) {}
+  }
 
   /* ============================================================
    * 13. 生命值 / 伤害 / 死亡
@@ -2954,10 +2987,26 @@
     }
     return true;
   }
+  // 音符盒：右键升调演奏（25 个半音 = 两个八度），粒子随音高变色
+  const NOTE_NAMES = ['A', 'A♯', 'B', 'C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯'];
+  const noteState = new Map();   // "x,y,z" → 音高
+  function playNoteBlock(x, y, z) {
+    const key = x + ',' + y + ',' + z;
+    const n = ((noteState.get(key) ?? -1) + 1) % 25;
+    noteState.set(key, n);
+    const f = 440 * Math.pow(2, (n - 12) / 12);
+    playPling(f);
+    burst(x + .5, y + 1.15, z + .5, {
+      colors: ['#7ee87e', '#e8e87e', '#7ea8e8', '#e87ec8'], count: 6, spread: 1, up: 2.4, life: .6, gravity: 3, size: .55 });
+    swing = 1;
+    return { n, name: NOTE_NAMES[n % 12] + (Math.floor(n / 12) ? '5' : '4'), f: Math.round(f) };
+  }
   function placeBlock() {
     swing = 1;
     const id = HOTBAR[selected];
     if (FOODS[id]) { eatFood(); return; }   // 手持食物右键 = 进食
+    const pre = currentTarget();
+    if (pre && pre.block === B.NOTE) { playNoteBlock(pre.x, pre.y, pre.z); return; }   // 指向音符盒 = 演奏
     if (!BLOCKS[id]) { swing = 1; showToast('工具不能放置，用它去挖掘或战斗吧'); return; }
     const blk = currentTarget();
     if (!blk || (blk.nx === 0 && blk.ny === 0 && blk.nz === 0)) return;
@@ -3759,6 +3808,7 @@
     toggleHelp,
     music: () => ({ on: musicOn, vol: musicVol, style: cur, stats: { ...musicStats }, ctx: !!audioCtx }),
     toggleMusic, musicReset: () => { musicStats.notes = 0; musicStats.pads = 0; },
+    note: playNoteBlock, noteState,
     sndTest: (id, kind) => blockSnd(id, kind), sndFam: id => SND_OF[id] || 'stone?',
     tileURL: (ids, z = 6) => {   // 调试：离屏导出贴图（不向页面添加任何元素）
       const c = document.createElement('canvas');
