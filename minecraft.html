@@ -232,7 +232,7 @@
     <div class="panel">
       <canvas id="coverCanvas" width="520" height="132"></canvas>
       <h1>🧱 Mini<span>Craft</span> 迷你我的世界</h1>
-      <div class="sub">三大维度 · 生物 · 合成 · 40 种方块 · 生命值 · 建筑生成</div>
+      <div class="sub">三大维度 · 9 种生物 · 合成 · 68 种方块（台阶/楼梯/栅栏/彩色羊毛） · 生命值 · 建筑生成</div>
       <table>
         <tr><td class="k">鼠标</td><td>视角</td><td class="k">左键</td><td>挖掘 / 攻击生物</td></tr>
         <tr><td class="k">右键</td><td>放置方块</td><td class="k">中键</td><td>吸取方块</td></tr>
@@ -288,7 +288,22 @@
     WOOL:21, COAL_ORE:22, IRON_ORE:23, GOLD_ORE:24, DIAMOND_ORE:25,
     STONE_BRICK:26, MOSSY_COBBLE:27, CRAFT_TABLE:28, NETHERRACK:29, SOUL_SAND:30,
     NETHER_BRICK:31, QUARTZ_ORE:32, QUARTZ:33, BLACKSTONE:34, CRIMSON_PLANK:35,
-    WARPED_PLANK:36, MAGMA:37, END_STONE:38, PURPUR:39, LAVA:40, NOTE:41 };
+    WARPED_PLANK:36, MAGMA:37, END_STONE:38, PURPUR:39, LAVA:40, NOTE:41,
+    SLAB_OAK:42, SLAB_COBBLE:43, SLAB_STONEBRICK:44, SLAB_BRICK:45,
+    STAIR_OAK:46, STAIR_COBBLE:47, STAIR_STONEBRICK:48, STAIR_BRICK:49,
+    FENCE_OAK:50, FENCE_NETHER:51,
+    WOOL_ORANGE:52, WOOL_MAGENTA:53, WOOL_LBLUE:54, WOOL_YELLOW:55, WOOL_LIME:56,
+    WOOL_PINK:57, WOOL_GRAY:58, WOOL_LGRAY:59, WOOL_CYAN:60, WOOL_PURPLE:61,
+    WOOL_BLUE:62, WOOL_BROWN:63, WOOL_GREEN:64, WOOL_RED:65, WOOL_BLACK:66,
+    LAPIS_ORE:67, EMERALD_ORE:68 };
+
+  // 形状方块的几何：boxes = [x0,x1, y0,y1, z0,z1]（局部 0~1），渲染与碰撞共用
+  const SHAPE = {
+    slab:   { boxes: [[0, 1, 0, .5, 0, 1]], collide: [[0, 1, 0, .5, 0, 1]] },
+    stair:  { boxes: [[0, 1, 0, .5, 0, 1], [.5, 1, .5, 1, 0, 1]],   // 金字塔两级：任意 x 方向都能两步走上
+              collide: [[0, 1, 0, .5, 0, 1], [.5, 1, .5, 1, 0, 1]] },
+    fence:  { boxes: 'fence', collide: [[0, 1, 0, 1.5, 0, 1]] },   // 渲染按邻接动态生成；碰撞为整格 1.5 高（MC 同款，跳不过）
+  };
 
   // tiles=[顶,侧,底]
   const BLOCKS = [
@@ -334,7 +349,29 @@
     { name:'紫珀块',   tiles:[45,45,45], solid:true, opaque:true },
     { name:'岩浆',     tiles:[46,46,46], solid:false, opaque:false, liquid:true, bucket:'lava' },
     { name:'音符盒',   tiles:[69,70,8],  solid:true, opaque:true },
+    { name:'橡木台阶', tiles:[8,8,8],    solid:true, opaque:false, shape:'slab' },
+    { name:'圆石台阶', tiles:[11,11,11], solid:true, opaque:false, shape:'slab' },
+    { name:'石砖台阶', tiles:[31,31,31], solid:true, opaque:false, shape:'slab' },
+    { name:'砖块台阶', tiles:[12,12,12], solid:true, opaque:false, shape:'slab' },
+    { name:'橡木楼梯', tiles:[8,8,8],    solid:true, opaque:false, shape:'stair' },
+    { name:'圆石楼梯', tiles:[11,11,11], solid:true, opaque:false, shape:'stair' },
+    { name:'石砖楼梯', tiles:[31,31,31], solid:true, opaque:false, shape:'stair' },
+    { name:'砖块楼梯', tiles:[12,12,12], solid:true, opaque:false, shape:'stair' },
+    { name:'橡木栅栏',   tiles:[8,8,8],  solid:true, opaque:false, shape:'fence' },
+    { name:'下界砖栅栏', tiles:[37,37,37], solid:true, opaque:false, shape:'fence' },
   ];
+  // 15 色羊毛 + 矿石：贴图编号在图集绘制段按 WOOL_COLS 生成
+  const WOOL_COLS = [
+    ['橙色羊毛', '#e07f28'], ['品红色羊毛', '#b350bc'], ['淡蓝色羊毛', '#6b8ac9'],
+    ['黄色羊毛', '#c8b033'], ['黄绿色羊毛', '#7cb02c'], ['粉红色羊毛', '#d8889a'],
+    ['灰色羊毛', '#4a4a4a'], ['淡灰色羊毛', '#9c9c9c'], ['青色羊毛', '#2e7e8e'],
+    ['紫色羊毛', '#7b3fb5'], ['蓝色羊毛', '#3548b0'], ['棕色羊毛', '#7a5233'],
+    ['绿色羊毛', '#5a7228'], ['红色羊毛', '#a8332e'], ['黑色羊毛', '#252525'],
+  ];
+  WOOL_COLS.forEach(([name, hex], i) => BLOCKS[B.WOOL_ORANGE + i] = {
+    name, tiles:[71 + i, 71 + i, 71 + i], solid:true, opaque:true });
+  BLOCKS[B.LAPIS_ORE]   = { name:'青金石矿石', tiles:[86,86,86], solid:true, opaque:true };
+  BLOCKS[B.EMERALD_ORE] = { name:'绿宝石矿石', tiles:[87,87,87], solid:true, opaque:true };
 
   const ITEMS = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.MOSSY_COBBLE, B.STONE_BRICK, B.SAND,
     B.SANDSTONE, B.LOG, B.PLANK, B.LEAVES, B.GLASS, B.BRICK, B.SNOW, B.ICE, B.OBSIDIAN,
@@ -342,11 +379,20 @@
     B.COAL_ORE, B.IRON_ORE, B.GOLD_ORE, B.DIAMOND_ORE,
     B.NETHERRACK, B.SOUL_SAND, B.NETHER_BRICK, B.QUARTZ_ORE, B.QUARTZ, B.BLACKSTONE,
     B.CRIMSON_PLANK, B.WARPED_PLANK, B.MAGMA, B.END_STONE, B.PURPUR, B.NOTE, 101, 102,
+    103, 104,
+    B.SLAB_OAK, B.SLAB_COBBLE, B.SLAB_STONEBRICK, B.SLAB_BRICK,
+    B.STAIR_OAK, B.STAIR_COBBLE, B.STAIR_STONEBRICK, B.STAIR_BRICK,
+    B.FENCE_OAK, B.FENCE_NETHER,
+    B.WOOL_ORANGE, B.WOOL_MAGENTA, B.WOOL_LBLUE, B.WOOL_YELLOW, B.WOOL_LIME,
+    B.WOOL_PINK, B.WOOL_GRAY, B.WOOL_LGRAY, B.WOOL_CYAN, B.WOOL_PURPLE,
+    B.WOOL_BLUE, B.WOOL_BROWN, B.WOOL_GREEN, B.WOOL_RED, B.WOOL_BLACK,
+    B.LAPIS_ORE, B.EMERALD_ORE,
     110, 111, 112, 113, 114, 115, 116, 120, 121, 122, 123, 124, 125, 126, 127,
     128, 129, 130, 131, 132];
 
   // 食物道具（非方块）：右键进食恢复饱食度；tile 为图集贴图编号
-  const FOODS = { 101: { name:'猪排', tile:47, food:8 }, 102: { name:'腐肉', tile:48, food:4, poison:true } };
+  const FOODS = { 101: { name:'猪排', tile:47, food:8 }, 102: { name:'腐肉', tile:48, food:4, poison:true },
+    103: { name:'牛排', tile:88, food:8 }, 104: { name:'鸡肉', tile:89, food:6 } };
   // 工具：镐（挖掘加速+采集等级）与剑（攻击力）；dur 为耐久
   const TOOLS = {
     110: { name:'木镐',   tile:49, kind:'pick',  tier:1, dur:60,   max:60 },
@@ -380,6 +426,7 @@
     [B.SANDSTONE]:1, [B.ICE]:1, [B.MAGMA]:1, [B.NETHER_BRICK]:1, [B.BLACKSTONE]:1,
     [B.END_STONE]:1, [B.PURPUR]:1, [B.COAL_ORE]:1, [B.QUARTZ_ORE]:1,
     [B.IRON_ORE]:2, [B.GOLD_ORE]:3, [B.DIAMOND_ORE]:3, [B.OBSIDIAN]:4,
+    [B.LAPIS_ORE]:1, [B.EMERALD_ORE]:2,
   };
   const defOf = id => BLOCKS[id] || FOODS[id] || TOOLS[id] || ARMOR[id];
 
@@ -388,6 +435,9 @@
     [B.GRASS]: .45, [B.DIRT]: .4, [B.SAND]: .35, [B.SANDSTONE]: .65, [B.STONE]: .9,
     [B.COBBLE]: .9, [B.MOSSY_COBBLE]: .9, [B.STONE_BRICK]: .95, [B.BRICK]: .95,
     [B.LOG]: .6, [B.PLANK]: .6, [B.CRAFT_TABLE]: .6, [B.BOOKSHELF]: .5, [B.NOTE]: .6,
+    [B.SLAB_OAK]: .6, [B.SLAB_COBBLE]: .9, [B.SLAB_STONEBRICK]: .95, [B.SLAB_BRICK]: .95,
+    [B.STAIR_OAK]: .6, [B.STAIR_COBBLE]: .9, [B.STAIR_STONEBRICK]: .95, [B.STAIR_BRICK]: .95,
+    [B.FENCE_OAK]: .6, [B.FENCE_NETHER]: .95, [B.LAPIS_ORE]: 1.3, [B.EMERALD_ORE]: 1.5,
     [B.LEAVES]: .15, [B.GLASS]: .2, [B.ICE]: .3, [B.SNOW]: .2, [B.WOOL]: .3,
     [B.COAL_ORE]: 1.1, [B.IRON_ORE]: 1.3, [B.GOLD_ORE]: 1.3, [B.DIAMOND_ORE]: 1.5,
     [B.QUARTZ_ORE]: 1.1, [B.NETHERRACK]: .4, [B.SOUL_SAND]: .4, [B.NETHER_BRICK]: .95,
@@ -402,6 +452,16 @@
     { in: [[B.LOG, 1]],                      out: [B.PLANK, 4] },
     { in: [[B.PLANK, 4]],                    out: [B.CRAFT_TABLE, 1] },
     { in: [[B.PLANK, 4], [B.QUARTZ, 1]],     out: [B.NOTE, 1] },
+    { in: [[B.PLANK, 3]],                    out: [B.SLAB_OAK, 6] },
+    { in: [[B.COBBLE, 3]],                   out: [B.SLAB_COBBLE, 6] },
+    { in: [[B.STONE_BRICK, 3]],              out: [B.SLAB_STONEBRICK, 6] },
+    { in: [[B.BRICK, 3]],                    out: [B.SLAB_BRICK, 6] },
+    { in: [[B.PLANK, 6]],                    out: [B.STAIR_OAK, 4] },
+    { in: [[B.COBBLE, 6]],                   out: [B.STAIR_COBBLE, 4] },
+    { in: [[B.STONE_BRICK, 6]],              out: [B.STAIR_STONEBRICK, 4] },
+    { in: [[B.BRICK, 6]],                    out: [B.STAIR_BRICK, 4] },
+    { in: [[B.PLANK, 4]],                    out: [B.FENCE_OAK, 2] },
+    { in: [[B.NETHER_BRICK, 4]],             out: [B.FENCE_NETHER, 2] },
     { in: [[B.COBBLE, 1]],                   out: [B.STONE, 1] },
     { in: [[B.STONE, 4]],                    out: [B.STONE_BRICK, 4] },
     { in: [[B.COBBLE, 4]],                   out: [B.MOSSY_COBBLE, 4] },
@@ -487,7 +547,7 @@
   /* ============================================================
    * 3. 贴图图集（32×32，48 张）
    * ============================================================ */
-  const TILE = 32, NTILES = 72;
+  const TILE = 32, NTILES = 96;
   const atlasCanvas = document.createElement('canvas');
   atlasCanvas.width = TILE * NTILES; atlasCanvas.height = TILE;
   const actx = atlasCanvas.getContext('2d');
@@ -995,6 +1055,28 @@
   rect(70, 17, 7, 3, 2, '#2a2118');             // 符尾
   px(70, 20, 9, '#2a2118'); px(70, 21, 10, '#2a2118');
 
+  // 71~85 十五色羊毛（与白羊毛同款织纹）；86 青金石矿 / 87 绿宝石矿；88 牛排 / 89 鸡肉
+  function shadeHex(hex, f) {
+    const n = parseInt(hex.slice(1), 16);
+    const c = v => Math.min(255, Math.max(0, Math.round(v * f)));
+    return '#' + ((c(n >> 16) << 16) | (c(n >> 8 & 255) << 8) | c(n & 255)).toString(16).padStart(6, '0');
+  }
+  WOOL_COLS.forEach(([name, hex], i) => {
+    const ti = 71 + i;
+    eachPx((x, y) => {
+      const weave = ((x + y) % 8 < 1) || ((x - y + TILE) % 8 < 1);
+      px(ti, x, y, weave ? shadeHex(hex, .88) : hex);
+    });
+    speckle(ti, shadeHex(hex, 1.12), .06); speckle(ti, shadeHex(hex, .78), .05);
+  });
+  paintOre(86, ['#2a52c8', '#1e3fa8', '#5a7ce0'], STONE_C, .6);
+  paintOre(87, ['#2ec858', '#1ea844', '#6ae888'], STONE_C, .7);
+  clump(88, ['#8a4a2a', '#9c5632', '#7a3e22'], 5, 88);        // 牛排
+  for (const y of [10, 16, 22]) rect(88, 5, y, 22, 2, '#5e2f18');
+  clump(89, ['#e8b0a0', '#f2c4b4', '#d8a090'], 5, 89);         // 鸡腿
+  rect(89, 14, 18, 4, 9, '#ece4d4');
+  px(89, 13, 17, '#d8ccb8'); px(89, 18, 17, '#d8ccb8'); px(89, 15, 26, '#c8bca8');
+
   const tileAvgColor = [];
   for (let ti = 0; ti < NTILES; ti++) {
     const d = actx.getImageData(ti * TILE, 0, TILE, TILE).data;
@@ -1051,6 +1133,8 @@
     const c = hash3(x >> 1, y >> 1, z >> 1), r = hash3(x ^ 123, y ^ 456, z ^ 789);
     if (y < 10 && c < .022 && r < .8) return B.DIAMOND_ORE;
     if (y < 16 && c >= .030 && c < .052 && r < .8) return B.GOLD_ORE;
+    if (y < 14 && c >= .055 && c < .068 && r < .75) return B.LAPIS_ORE;
+    if (y < 20 && c >= .085 && c < .092 && r < .5) return B.EMERALD_ORE;
     if (c >= .07 && c < .10 && r < .8) return B.IRON_ORE;
     if (c >= .12 && c < .17 && r < .85) return B.COAL_ORE;
     if (y <= 2 && c >= .20 && c < .36 && r < .75) return B.OBSIDIAN;
@@ -1141,7 +1225,7 @@
         }
       }
     }
-    d.spawnPigSheep = { pig: 7, sheep: 7, zombie: 6, mouse: 6 };
+    d.spawnPigSheep = { pig: 7, sheep: 7, cow: 5, chicken: 6, zombie: 6, mouse: 6, creeper: 3 };
   }
 
   function tryHut(x0, z0, r) {
@@ -1375,6 +1459,27 @@
     if (!nd.opaque && !sd.opaque && !sd.liquid) return self < nb;
     return true;
   }
+  // 形状方块的盒子列表（渲染与碰撞共用单位）；栅栏按邻接实体动态连接
+  const CUBE_BOXES = [[0, 1, 0, 1, 0, 1]];
+  function boxesOf(x, y, z, bd) {
+    if (!bd.shape) return CUBE_BOXES;
+    if (bd.shape === 'fence') {
+      const P = 6 / 16, Q = 10 / 16, R = 7 / 16, S = 9 / 16;
+      const boxes = [[P, Q, 0, 1, P, Q]];   // 立柱
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nb = getBlock(x + dx, y, z + dz);
+        if (!nb || !BLOCKS[nb].solid) continue;
+        for (const [ry0, ry1] of [[6 / 16, 9 / 16], [12 / 16, 15 / 16]]) {
+          if (dx === 1) boxes.push([Q, 1, ry0, ry1, R, S]);
+          else if (dx === -1) boxes.push([0, P, ry0, ry1, R, S]);
+          else if (dz === 1) boxes.push([R, S, ry0, ry1, Q, 1]);
+          else boxes.push([R, S, ry0, ry1, 0, P]);
+        }
+      }
+      return boxes;
+    }
+    return SHAPE[bd.shape].boxes;
+  }
   const chunks = new Map();
   function buildChunk(cx, cz) {
     const key = cx + ',' + cz, old = chunks.get(key);
@@ -1388,21 +1493,30 @@
       const bd = BLOCKS[b];
       const T = bufs[bd.bucket || 'solid'];
       const lower = bd.liquid && getBlock(x, y + 1, z) !== b;
-      for (const f of FACES) {
-        const nb = getBlock(x + f.dir[0], y + f.dir[1], z + f.dir[2]);
-        if (!faceVisible(b, nb)) continue;
-        const tile = bd.tiles[f.ti];
-        const u0 = (tile * TILE + .06) / (TILE * NTILES), u1 = ((tile + 1) * TILE - .06) / (TILE * NTILES);
-        const base = T.p.length / 3;
-        for (let k = 0; k < 4; k++) {
-          const cr = f.corners[k];
-          let vy = cr[1];
-          if (lower && vy === 1) vy = .875;
-          T.p.push(x + cr[0], y + vy, z + cr[2]);
-          T.u.push(k === 1 || k === 2 ? u1 : u0, k < 2 ? .002 : .998);
-          T.c.push(f.shade, f.shade, f.shade);
+      for (const box of boxesOf(x, y, z, bd)) {
+        const [bx0, bx1, by0, by1, bz0, bz1] = box;
+        for (const f of FACES) {
+          // 只有与单元格边界齐平的面才做邻接剔除，形状的台阶面一律绘制
+          const ai = f.dir[0] !== 0 ? 0 : f.dir[1] !== 0 ? 1 : 2;
+          const ext = f.dir[ai] > 0 ? box[ai * 2 + 1] : box[ai * 2];
+          if (ext === (f.dir[ai] > 0 ? 1 : 0)) {
+            const nb = getBlock(x + f.dir[0], y + f.dir[1], z + f.dir[2]);
+            if (!bd.shape) { if (!faceVisible(b, nb)) continue; }
+            else if (nb !== B.AIR && (BLOCKS[nb].opaque || nb === b)) continue;
+          }
+          const tile = bd.tiles[f.ti];
+          const u0 = (tile * TILE + .06) / (TILE * NTILES), u1 = ((tile + 1) * TILE - .06) / (TILE * NTILES);
+          const base = T.p.length / 3;
+          for (let k = 0; k < 4; k++) {
+            const cr = f.corners[k];
+            let vy = cr[1] ? by1 : by0;
+            if (lower && vy === 1) vy = .875;
+            T.p.push(x + (cr[0] ? bx1 : bx0), y + vy, z + (cr[2] ? bz1 : bz0));
+            T.u.push(k === 1 || k === 2 ? u1 : u0, .002 + vy * .996);   // v 随盒子高度取贴图对应区段
+            T.c.push(f.shade, f.shade, f.shade);
+          }
+          T.i.push(base, base + 1, base + 2, base, base + 2, base + 3);
         }
-        T.i.push(base, base + 1, base + 2, base, base + 2, base + 3);
       }
     }
     const entry = {}, order = { solid: 0, water: 1, lava: 2, ice: 3 };
@@ -1542,6 +1656,26 @@
       p(0, 0, 16, 5, '#ece8e0');   // 腿上羊毛
       p(0, 13, 16, 3, '#8a7a68');  // 蹄
     }),
+    cowBody: tex16(p => {
+      p(0, 0, 16, 16, '#5e4a3c');
+      p(2, 2, 5, 5, '#ece8e0'); p(9, 8, 6, 6, '#ece8e0'); p(5, 11, 4, 4, '#ece8e0');   // 白斑
+      for (let i = 0; i < 16; i++) p((trng() * 16) | 0, (trng() * 16) | 0, 1, 1, '#52402f');
+      p(0, 14, 16, 2, '#4a3828');
+    }),
+    cowLeg: tex16(p => {
+      p(0, 0, 16, 16, '#5e4a3c');
+      p(0, 12, 16, 4, '#3a2c20');   // 蹄
+    }),
+    chickenBody: tex16(p => {
+      p(0, 0, 16, 16, '#ece8e0');
+      for (let i = 0; i < 20; i++) p((trng() * 16) | 0, (trng() * 16) | 0, 1, 1, trng() < .5 ? '#f4f0e8' : '#dcd6cc');
+    }),
+    chickenBeak: tex16(p => { p(0, 0, 16, 16, '#e8a020'); p(0, 10, 16, 6, '#c88018'); }),
+    creeperBody: tex16(p => {
+      p(0, 0, 16, 16, '#4cae3e');
+      for (let i = 0; i < 40; i++) p((trng() * 16) | 0, (trng() * 16) | 0, 1, 1,
+        trng() < .35 ? '#5ec04c' : trng() < .5 ? '#3c9032' : '#46a03a');
+    }),
     zombieSkin: speckleTex('#5a9e4a', ['#4c8a3e', '#66aa56', '#528e44'], .12),
     zombieShirt: tex16(p => {
       p(0, 0, 16, 16, '#3a7a8a');
@@ -1618,6 +1752,28 @@
       p(2, 6, 3, 2, '#ffffff'); p(3, 6, 2, 2, '#1a1a2e');
       p(11, 6, 3, 2, '#ffffff'); p(11, 6, 2, 2, '#1a1a2e');
       p(5, 11, 6, 3, '#e0a8a0'); p(6, 12, 1, 1, '#a06868'); p(9, 12, 1, 1, '#a06868');
+    }),
+    cow: tex16(p => {
+      p(0, 0, 16, 16, '#5e4a3c');
+      p(3, 0, 4, 6, '#ece8e0'); p(10, 1, 4, 5, '#ece8e0');   // 白斑
+      p(2, 6, 3, 2, '#ffffff'); p(3, 6, 2, 2, '#1a1a2e');
+      p(11, 6, 3, 2, '#ffffff'); p(11, 6, 2, 2, '#1a1a2e');
+      p(4, 10, 8, 5, '#d8ccc0'); p(5, 11, 2, 2, '#b89890'); p(9, 11, 2, 2, '#b89890');   // 口鼻
+    }),
+    chicken: tex16(p => {
+      p(0, 0, 16, 16, '#ece8e0');
+      p(0, 0, 16, 2, '#d8d2c8');
+      p(3, 5, 3, 3, '#ffffff'); p(4, 6, 2, 2, '#1a1a2e');
+      p(10, 5, 3, 3, '#ffffff'); p(10, 6, 2, 2, '#1a1a2e');
+      p(6, 9, 4, 3, '#e8a020'); p(7, 10, 2, 2, '#c05028');   // 喙
+      p(5, 3, 6, 2, '#c03028');                               // 鸡冠
+    }),
+    creeper: tex16(p => {
+      p(0, 0, 16, 16, '#4cae3e');
+      for (let i = 0; i < 30; i++) p((trng() * 16) | 0, (trng() * 16) | 0, 1, 1,
+        trng() < .5 ? '#5ec04c' : '#3c9032');
+      p(3, 4, 4, 4, '#101810'); p(9, 4, 4, 4, '#101810');     // 眼
+      p(6, 8, 4, 6, '#101810'); p(4, 10, 2, 4, '#101810'); p(10, 10, 2, 4, '#101810');   // 嘴
     }),
     zombie: tex16(p => {
       p(0, 0, 16, 16, '#5a9e4a');
@@ -1744,6 +1900,59 @@
     addShadow(g, .4);
     return { group: g, head: headPivot, body, legs, arms, tail: null };
   }
+  // 牛：四足 + 双角 + 白斑
+  function buildCow() {
+    const m = buildQuadruped(TEX.cowBody, TEX.cowBody, TEX.cowLeg, MOB_FACES.cow, { tail: true });
+    for (const s of [-1, 1]) {   // 弯角
+      const horn = texturedPart(.07, .2, .07, TEX.sheepLeg);
+      horn.position.set(s * .24, .95, .6); horn.rotation.z = s * -.4;
+      m.group.add(horn);
+    }
+    return m;
+  }
+  // 鸡：小个子两足 + 黄喙 + 红冠
+  function buildChicken() {
+    const g = new THREE.Group();
+    const body = texturedPart(.34, .3, .42, TEX.chickenBody);
+    body.position.set(0, .38, 0); g.add(body);
+    const head = texturedPart(.22, .22, .22, TEX.chickenBody, MOB_FACES.chicken);
+    head.position.set(0, .62, .2); g.add(head);
+    const beak = texturedPart(.1, .07, .1, TEX.chickenBeak);
+    beak.position.set(0, .6, .34); g.add(beak);
+    const comb = texturedPart(.06, .08, .14, TEX.chickenBeak);
+    comb.position.set(0, .76, .18); g.add(comb);
+    const wings = [];
+    for (const s of [-1, 1]) {
+      const wing = texturedPart(.05, .22, .3, TEX.chickenBody);
+      wing.position.set(s * .2, .4, -.02); g.add(wing); wings.push(wing);
+    }
+    const legs = [];
+    for (const s of [-1, 1]) {
+      const leg = texturedPart(.05, .22, .05, TEX.chickenBeak);
+      const pivot = new THREE.Group();
+      pivot.position.set(s * .08, .24, .02); leg.position.y = -.11;
+      pivot.add(leg); g.add(pivot); legs.push(pivot);
+    }
+    addShadow(g, .2);
+    return { group: g, head, legs, arms: [], tail: null, wings };
+  }
+  // 苦力怕：矮胖四足无手臂，经典四短腿
+  function buildCreeper() {
+    const g = new THREE.Group();
+    const body = texturedPart(.44, .8, .3, TEX.creeperBody);
+    body.position.y = .78; g.add(body);
+    const head = texturedPart(.46, .46, .46, TEX.creeperBody, MOB_FACES.creeper);
+    head.position.y = 1.42; g.add(head);
+    const legs = [];
+    for (const [lx, lz] of [[-.13, .2], [.13, .2], [-.13, -.2], [.13, -.2]]) {
+      const leg = texturedPart(.2, .38, .2, TEX.creeperBody);
+      const pivot = new THREE.Group();
+      pivot.position.set(lx, .38, lz); leg.position.y = -.19;
+      pivot.add(leg); g.add(pivot); legs.push(pivot);
+    }
+    addShadow(g, .4);
+    return { group: g, head, legs, arms: [], tail: null };
+  }
   // 小老鼠：小巧四足 + 圆耳朵 + 粉鼻 + 长尾巴
   function buildMouse() {
     const g = new THREE.Group();
@@ -1778,6 +1987,10 @@
     sheep:    { hp: 3, speed: 1.1, chaseSpeed: 0,   hostile: false, halfW: .38, height: 1.05,
                 build: () => buildQuadruped(TEX.sheepWool, TEX.sheepWool, TEX.sheepLeg, MOB_FACES.sheep,
                   { wool: true, tail: true }) },
+    cow:      { hp: 5, speed: 1.0, chaseSpeed: 0,   hostile: false, halfW: .4, height: 1.15, build: buildCow },
+    chicken:  { hp: 2, speed: 1.2, chaseSpeed: 0,   hostile: false, halfW: .2, height: .7, build: buildChicken },
+    creeper:  { hp: 5, speed: 1.0, chaseSpeed: 2.0, hostile: true,  halfW: .3, height: 1.7, explode: true,
+                build: buildCreeper },
     zombie:   { hp: 5, speed: 1.0, chaseSpeed: 2.3, hostile: true,  halfW: .3, height: 1.9, dmg: 3,
                 build: () => buildHumanoid(TEX.zombieSkin, TEX.zombieShirt, TEX.zombiePants, MOB_FACES.zombie, TEX.zombieSkin) },
     pigman:   { hp: 6, speed: 1.0, chaseSpeed: 2.4, hostile: true,  halfW: .3, height: 1.9, dmg: 3,
@@ -1964,37 +2177,53 @@
         minx: ent.pos.x - hw, maxx: ent.pos.x + hw,
         miny: ent.pos.y,      maxy: ent.pos.y + ent.height,
         minz: ent.pos.z - hw, maxz: ent.pos.z + hw };
-      let hit = false;
-      const x0 = Math.floor(b.minx), x1 = Math.floor(b.maxx - 1e-7);
-      const y0 = Math.floor(b.miny), y1 = Math.floor(b.maxy - 1e-7);
-      const z0 = Math.floor(b.minz), z1 = Math.floor(b.maxz - 1e-7);
+      let hit = false, stepped = false;
+      const x0 = Math.floor(b.minx) - 1, x1 = Math.floor(b.maxx - 1e-7) + 1;   // ±1 格：形状盒可超出本格（如 1.5 高栅栏柱）
+      const y0 = Math.floor(b.miny) - 1, y1 = Math.floor(b.maxy - 1e-7) + 1;
+      const z0 = Math.floor(b.minz) - 1, z1 = Math.floor(b.maxz - 1e-7) + 1;
+      cell:
       for (let x = x0; x <= x1 && !hit; x++)
         for (let y = y0; y <= y1 && !hit; y++)
           for (let z = z0; z <= z1 && !hit; z++) {
             const bl = getBlock(x, y, z);
             if (!bl || !BLOCKS[bl].solid) continue;
-            hit = true;
-            if (axis === 1) {
-              if (ent.vel.y <= 0) { ent.pos.y = y + 1; ent.onGround = true; }
-              else ent.pos.y = y - ent.height - EPS;
-              ent.vel.y = 0;
-            } else if (axis === 0) {
-              ent.pos.x = ent.vel.x > 0 ? x - hw - EPS : x + 1 + hw + EPS;
-              ent.vel.x = 0;
-            } else {
-              ent.pos.z = ent.vel.z > 0 ? z - hw - EPS : z + 1 + hw + EPS;
-              ent.vel.z = 0;
+            const boxes = BLOCKS[bl].shape ? SHAPE[BLOCKS[bl].shape].collide : CUBE_BOXES;
+            for (const box of boxes) {
+              const wx0 = x + box[0], wx1 = x + box[1], wy0 = y + box[2],
+                    wy1 = y + box[3], wz0 = z + box[4], wz1 = z + box[5];
+              if (b.maxx <= wx0 + 1e-9 || b.minx >= wx1 - 1e-9 || b.maxy <= wy0 + 1e-9 ||
+                  b.miny >= wy1 - 1e-9 || b.maxz <= wz0 + 1e-9 || b.minz >= wz1 - 1e-9) continue;
+              // 自动上步：台阶/楼梯等矮障碍（≤0.55）走上去，不用跳
+              if (axis !== 1 && ent.onGround && wy1 - ent.pos.y <= .55 && wy1 - ent.pos.y > 0 &&
+                  boxFreeAt(ent.pos.x, wy1 + EPS, ent.pos.z)) {
+                ent.pos.y = wy1 + EPS;
+                stepped = true; hit = true;
+                break cell;
+              }
+              hit = true;
+              if (axis === 1) {
+                if (ent.vel.y <= 0) { ent.pos.y = wy1; ent.onGround = true; }
+                else ent.pos.y = wy0 - ent.height - EPS;
+                ent.vel.y = 0;
+              } else if (axis === 0) {
+                // 按实体中心在哪侧推出（同一轮多盒碰撞时速度已被清零，不能靠速度方向判断）
+                ent.pos.x = ent.pos.x < (wx0 + wx1) / 2 ? wx0 - hw - EPS : wx1 + hw + EPS;
+                ent.vel.x = 0;
+              } else {
+                ent.pos.z = ent.pos.z < (wz0 + wz1) / 2 ? wz0 - hw - EPS : wz1 + hw + EPS;
+                ent.vel.z = 0;
+              }
             }
           }
-      if (!hit) break;
+      if (!hit || stepped && pass >= 3) break;
     }
   }
   function moveEntity(ent, dt) {
-    ent.onGround = false;
     const md = Math.max(Math.abs(ent.vel.x), Math.abs(ent.vel.y), Math.abs(ent.vel.z)) * dt;
     const steps = Math.max(1, Math.ceil(md / .3));
     for (let s = 0; s < steps; s++) {
-      ent.pos.x += ent.vel.x * dt / steps; clampAxisEnt(ent, 0);
+      ent.pos.x += ent.vel.x * dt / steps; clampAxisEnt(ent, 0);   // x 先走：可借上一帧的着地状态自动上步
+      ent.onGround = false;
       ent.pos.y += ent.vel.y * dt / steps; clampAxisEnt(ent, 1);
       ent.pos.z += ent.vel.z * dt / steps; clampAxisEnt(ent, 2);
     }
@@ -2066,7 +2295,8 @@
       colors: ['#dddddd', '#aaaaaa', '#888888'], count: 18, spread: 3.5, life: .6, gravity: 1 });
     sfx(120, .25, 'sawtooth', .15);
     // 掉落物：羊→羊毛，猪→猪排，僵尸→腐肉
-    const dropTable = { sheep: [[B.WOOL, 1, 2]], pig: [[101, 1, 2]], zombie: [[102, 0, 1]] };
+    const dropTable = { sheep: [[B.WOOL, 1, 2]], pig: [[101, 1, 2]], cow: [[103, 1, 2]],
+      chicken: [[104, 1, 1]], zombie: [[102, 0, 1]] };
     const table = dropTable[e.type];
     if (table) for (const [id, lo, hi] of table) {
       const n = lo + Math.floor(Math.random() * (hi - lo + 1));
@@ -2099,8 +2329,30 @@
         const sp = e.def.chaseSpeed || e.def.speed;
         e.vel.x += (Math.sin(e.targetYaw) * sp - e.vel.x) * Math.min(1, dt * 8);
         e.vel.z += (Math.cos(e.targetYaw) * sp - e.vel.z) * Math.min(1, dt * 8);
-        // 攻击玩家
-        if (dist < 1.5 && Math.abs(player.pos.y - e.pos.y) < 2 && e.attackCd <= 0) {
+        // 苦力怕：贴近后点燃引信，闪烁膨胀，倒计时结束自爆
+        if (e.def.explode) {
+          if (dist < 2.6) {
+            if (e.fuse === undefined) { e.fuse = 1.5; sfx(1500, .3, 'sawtooth', .05); }
+            e.fuse -= dt;
+            const puff = 1 + Math.max(0, .35 - e.fuse * .3) + Math.sin(performance.now() / 60) * .05;
+            e.group.scale.setScalar(Math.max(.8, puff));
+            e.vel.x *= .8; e.vel.z *= .8;
+            if (e.fuse <= 0) {
+              const px2 = e.pos.x, py2 = e.pos.y + .8, pz2 = e.pos.z;
+              scene.remove(e.group);
+              entitiesOf().splice(entitiesOf().indexOf(e), 1);
+              explode(px2, py2, pz2);
+              damagePlayer(Math.max(1, 12 - dist * 3), '苦力怕的爆炸');
+              respawnQueue.push({ type: e.type, t: 8 + Math.random() * 8, dim: cur });
+              continue;
+            }
+          } else if (e.fuse !== undefined) {   // 拉开距离则熄火
+            e.fuse = undefined;
+            e.group.scale.setScalar(1);
+          }
+        }
+        // 攻击玩家（苦力怕不自爆前不近战）
+        if (!e.def.explode && dist < 1.5 && Math.abs(player.pos.y - e.pos.y) < 2 && e.attackCd <= 0) {
           e.attackCd = 1.1;
           damagePlayer(e.def.dmg || 2, `${MOB_CN[e.type]}的攻击`);
           const kb = new THREE.Vector3(dx, 0, dz).normalize();
@@ -2173,7 +2425,8 @@
       }
     }
   }
-  const MOB_CN = { pig: '猪', sheep: '羊', zombie: '僵尸', pigman: '僵尸猪人', enderman: '末影人', mouse: '老鼠' };
+  const MOB_CN = { pig: '猪', sheep: '羊', cow: '牛', chicken: '鸡', creeper: '苦力怕',
+    zombie: '僵尸', pigman: '僵尸猪人', enderman: '末影人', mouse: '老鼠' };
 
   // 玩家攻击生物：射线 vs 实体 AABB
   function rayEntityHit(o, d, max) {
@@ -2540,12 +2793,17 @@
   for (const [ids, mat] of [
     [[B.STONE, B.COBBLE, B.STONE_BRICK, B.MOSSY_COBBLE, B.BRICK, B.NETHER_BRICK,
       B.BLACKSTONE, B.END_STONE, B.PURPUR, B.OBSIDIAN, B.QUARTZ, B.SANDSTONE,
-      B.BEDROCK, B.MAGMA, B.GLOWSTONE], 'stone'],
+      B.BEDROCK, B.MAGMA, B.GLOWSTONE, B.LAPIS_ORE, B.EMERALD_ORE,
+      B.SLAB_COBBLE, B.SLAB_STONEBRICK, B.SLAB_BRICK, B.STAIR_COBBLE,
+      B.STAIR_STONEBRICK, B.STAIR_BRICK, B.FENCE_NETHER], 'stone'],
     [[B.COAL_ORE, B.IRON_ORE, B.GOLD_ORE, B.DIAMOND_ORE, B.QUARTZ_ORE], 'ore'],
-    [[B.LOG, B.PLANK, B.CRAFT_TABLE, B.BOOKSHELF, B.PUMPKIN, B.CRIMSON_PLANK, B.WARPED_PLANK, B.NOTE], 'wood'],
+    [[B.LOG, B.PLANK, B.CRAFT_TABLE, B.BOOKSHELF, B.PUMPKIN, B.CRIMSON_PLANK, B.WARPED_PLANK, B.NOTE,
+      B.SLAB_OAK, B.STAIR_OAK, B.FENCE_OAK], 'wood'],
     [[B.GRASS, B.DIRT, B.SAND, B.SOUL_SAND, B.SNOW], 'soft'],
     [[B.GLASS, B.ICE], 'glass'],
-    [[B.LEAVES, B.WOOL, B.TNT], 'leaf']
+    [[B.LEAVES, B.WOOL, B.TNT, B.WOOL_ORANGE, B.WOOL_MAGENTA, B.WOOL_LBLUE, B.WOOL_YELLOW,
+      B.WOOL_LIME, B.WOOL_PINK, B.WOOL_GRAY, B.WOOL_LGRAY, B.WOOL_CYAN, B.WOOL_PURPLE,
+      B.WOOL_BLUE, B.WOOL_BROWN, B.WOOL_GREEN, B.WOOL_RED, B.WOOL_BLACK], 'leaf']
   ]) for (const id of ids) SND_OF[id] = mat;
   // kind: 'hit' 敲击 | 'break' 破坏 | 'place' 放置 | 'step' 脚步
   function blockSnd(block, kind) {
@@ -2976,14 +3234,19 @@
     d.delay = 1.2;   // 自己丢的短时间吸不回来
     sfx(500, .05, 'sine', .08);
   }
-  // 玩家 AABB 放到 (x,y,z) 位置是否没有固体遮挡（垫脚检查用）
+  // 玩家 AABB 放到 (x,y,z) 位置是否没有固体遮挡（垫脚/上步检查用，三维盒感知）
   function boxFreeAt(x, y, z) {
-    const x0 = Math.floor(x - PW), x1 = Math.floor(x + PW - 1e-7);
-    const y0 = Math.floor(y), y1 = Math.floor(y + PH - 1e-7);
-    const z0 = Math.floor(z - PW), z1 = Math.floor(z + PW - 1e-7);
+    const x0 = Math.floor(x - PW) - 1, x1 = Math.floor(x + PW - 1e-7) + 1;
+    const y0 = Math.floor(y) - 1, y1 = Math.floor(y + PH - 1e-7) + 1;
+    const z0 = Math.floor(z - PW) - 1, z1 = Math.floor(z + PW - 1e-7) + 1;
     for (let bx = x0; bx <= x1; bx++) for (let by = y0; by <= y1; by++) for (let bz = z0; bz <= z1; bz++) {
       const b = getBlock(bx, by, bz);
-      if (b && BLOCKS[b].solid) return false;
+      if (!b || !BLOCKS[b].solid) continue;
+      const boxes = BLOCKS[b].shape ? SHAPE[BLOCKS[b].shape].collide : CUBE_BOXES;
+      for (const box of boxes)
+        if (x - PW < bx + box[1] - 1e-9 && x + PW > bx + box[0] + 1e-9 &&
+            z - PW < bz + box[5] - 1e-9 && z + PW > bz + box[4] + 1e-9 &&
+            y < by + box[3] - 1e-9 && y + PH > by + box[2] + 1e-9) return false;
     }
     return true;
   }
@@ -3809,6 +4072,9 @@
     music: () => ({ on: musicOn, vol: musicVol, style: cur, stats: { ...musicStats }, ctx: !!audioCtx }),
     toggleMusic, musicReset: () => { musicStats.notes = 0; musicStats.pads = 0; },
     note: playNoteBlock, noteState,
+    set: (x, y, z, id) => { setBlockData(x, y, z, id); rebuildAt(x, z); },
+    move: (ent, dt) => moveEntity(ent, dt),
+    tickMobs: dt => updateMobs(dt),
     sndTest: (id, kind) => blockSnd(id, kind), sndFam: id => SND_OF[id] || 'stone?',
     tileURL: (ids, z = 6) => {   // 调试：离屏导出贴图（不向页面添加任何元素）
       const c = document.createElement('canvas');
