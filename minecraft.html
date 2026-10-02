@@ -215,7 +215,8 @@
         <tr><td class="k">Q</td><td>丢弃手持物品</td><td class="k">装备栏</td><td>物品库左侧穿盔甲</td></tr>
         <tr><td class="sec" colspan="4">🌍 视 角 与 维 度</td></tr>
         <tr><td class="k">F5</td><td>第一 / 第三人称</td><td class="k">F3</td><td>坐标与 FPS</td></tr>
-        <tr><td class="k">N</td><td>切换维度 🌍🔥🌌</td><td class="k">H</td><td>开关本帮助</td></tr>
+        <tr><td class="k">N</td><td>切换维度 🌍🔥🌌</td><td class="k">M</td><td>背景音乐 开 / 关</td></tr>
+        <tr><td class="k">H</td><td>开关本帮助</td><td class="k">音量</td><td>开始界面 🎵 调节</td></tr>
       </table>
       <div class="sub" style="margin:6px 0 0">💡 饱食度 ≥ 18 才回血 · 铁矿要石镐 · 黑曜石要钻石镐 · 盔甲最高减伤 80%</div>
     </div>
@@ -236,11 +237,19 @@
         <tr><td class="k">Q</td><td>丢弃手持物品</td><td class="k">右键(食物)</td><td>进食充饥</td></tr>
         <tr><td class="k">H</td><td>按键帮助</td><td class="k">滚轮</td><td>切换快捷栏</td></tr>
       </table>
-      <div style="margin:2px 0 10px;font-size:13px;color:#cfe0f0">
+      <div style="margin:2px 0 4px;font-size:13px;color:#cfe0f0">
         🖱 鼠标灵敏度：
         <button class="btn" id="sensDown" style="padding:2px 12px;font-size:15px">−</button>
         <span id="sensVal" style="color:#ffd966;min-width:42px;display:inline-block">1.0×</span>
         <button class="btn" id="sensUp" style="padding:2px 12px;font-size:15px">＋</button>
+      </div>
+      <div style="margin:2px 0 10px;font-size:13px;color:#cfe0f0">
+        🎵 音乐音量：
+        <button class="btn" id="musicDown" style="padding:2px 12px;font-size:15px">−</button>
+        <span id="musicVal" style="color:#ffd966;min-width:42px;display:inline-block">45%</span>
+        <button class="btn" id="musicUp" style="padding:2px 12px;font-size:15px">＋</button>
+        <button class="btn" id="musicBtn" style="padding:2px 12px;font-size:13px">开</button>
+        <span style="font-size:11px;color:#8aa3c0">（游戏中按 M 开关）</span>
       </div>
       <div style="margin-bottom:8px">
         <button class="btn" id="dimOver">🌍 主世界</button>
@@ -2009,7 +2018,7 @@
     e.vel.x += knockDir.x * 6; e.vel.z += knockDir.z * 6; e.vel.y = Math.max(e.vel.y, 4.5);
     burst(e.pos.x, e.pos.y + e.height * .6, e.pos.z, {
       colors: ['#e05050', '#ffffff'], count: 8, spread: 3, life: .4 });
-    sfx(220 + Math.random() * 80, .1, 'square', .12);
+    hitSnd();
     if (!e.hostile) e.angry = true;   // 被动生物被打也会逃跑
     if (e.def.teleport && e.hp > 0) {   // 末影人受伤瞬移
       burst(e.pos.x, e.pos.y + 1.4, e.pos.z, { colors: ['#a050c0', '#d06ee8'], count: 16, spread: 4 });
@@ -2297,6 +2306,244 @@
   }
   const boomSfx = () => { sfx(55, .5, 'sawtooth', .35); sfx(38, .6, 'square', .25); sfx(120, .15, 'square', .2); };
 
+  /* ------------------------------------------------------------
+   * 12.5 程序化背景音乐：每个维度一种风格，随机生成永不重复
+   *     M 键开关，音量在开始界面调节（localStorage 持久化）
+   * ------------------------------------------------------------ */
+  let musicOn = localStorage.getItem('mc_music') !== '0';
+  let musicVol = Math.max(0, Math.min(1, parseFloat(localStorage.getItem('mc_musicvol')) || .45));
+  let musicBus = null;
+  const musicStats = { notes: 0, pads: 0 };
+  function ensureMusicBus() {
+    if (!audioCtx) return null;
+    if (!musicBus) {
+      musicBus = audioCtx.createGain();
+      musicBus.gain.value = musicOn ? musicVol : 0;
+      musicBus.connect(audioCtx.destination);
+    }
+    return musicBus;
+  }
+  function applyMusicGain() {
+    if (musicBus && audioCtx)
+      musicBus.gain.setTargetAtTime(musicOn ? musicVol : 0, audioCtx.currentTime, .4);
+  }
+  // 钢琴音色：基音 + 泛音叠加，快起慢衰
+  function playPiano(freq, dur, vel = 1) {
+    const bus = ensureMusicBus(); if (!bus) return;
+    try {
+      const t = audioCtx.currentTime;
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(.16 * vel, t + .012);
+      g.gain.exponentialRampToValueAtTime(.0006, t + dur);
+      g.connect(bus);
+      for (const [mult, type, amp] of [[1, 'sine', 1], [2, 'sine', .34], [3.01, 'sine', .1], [1, 'triangle', .14]]) {
+        const o = audioCtx.createOscillator(), og = audioCtx.createGain();
+        o.type = type; o.frequency.value = freq * mult; og.gain.value = amp;
+        o.connect(og).connect(g);
+        o.start(t); o.stop(t + dur + .1);
+      }
+      musicStats.notes++;
+    } catch (e) {}
+  }
+  // 末地钟声：非谐泛音，绵长空灵
+  function playBell(freq, dur, vel = 1) {
+    const bus = ensureMusicBus(); if (!bus) return;
+    try {
+      const t = audioCtx.currentTime;
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(.12 * vel, t + .008);
+      g.gain.exponentialRampToValueAtTime(.0004, t + dur);
+      g.connect(bus);
+      for (const [mult, amp] of [[1, 1], [2.76, .28], [5.4, .07]]) {
+        const o = audioCtx.createOscillator(), og = audioCtx.createGain();
+        o.type = 'sine'; o.frequency.value = freq * mult; og.gain.value = amp;
+        o.connect(og).connect(g);
+        o.start(t); o.stop(t + dur + .1);
+      }
+      musicStats.notes++;
+    } catch (e) {}
+  }
+  // 氛围垫：三角波簇 + 低通，缓慢起落
+  function playPad(freqs, dur, vol, lpHz) {
+    const bus = ensureMusicBus(); if (!bus) return;
+    try {
+      const t = audioCtx.currentTime;
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(vol, t + dur * .35);
+      g.gain.linearRampToValueAtTime(0, t + dur);
+      const lp = audioCtx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = lpHz;
+      g.connect(lp).connect(bus);
+      for (const f of freqs) for (const det of [-5, 5]) {
+        const o = audioCtx.createOscillator();
+        o.type = 'triangle'; o.frequency.value = f; o.detune.value = det;
+        o.connect(g);
+        o.start(t); o.stop(t + dur + .1);
+      }
+      musicStats.pads++;
+    } catch (e) {}
+  }
+  // 三种维度的“主题曲”参数
+  const MUSIC = {
+    overworld: {
+      scale: [261.63, 293.66, 329.63, 392, 440, 523.25, 587.33, 659.26],   // C 大调五声（两个八度）
+      chords: [[130.81, 164.81, 196], [110, 130.81, 164.81], [87.31, 110, 130.81], [98, 123.47, 146.83]], // C am F G
+      chordEvery: [13, 19], chordDur: [10, 14], padVol: .05, lp: 900,
+      note: playPiano, noteGap: [.5, 1.9], noteDur: [2.2, 3.6], phrase: [4, 8], rest: [4, 9], lowOct: .22
+    },
+    nether: {
+      scale: [220, 261.63, 293.66, 349.23, 392, 440],                     // A 小调五声（中低音区）
+      chords: [[55, 110, 164.81], [58.27, 116.54, 174.61]],               // A / 降B 暗淡对峙
+      chordEvery: [10, 16], chordDur: [11, 15], padVol: .06, lp: 520,
+      note: playPiano, noteGap: [1, 3], noteDur: [2.6, 4], phrase: [2, 5], rest: [6, 12], lowOct: .45
+    },
+    end: {
+      scale: [523.25, 587.33, 659.26, 739.99, 830.61, 932.33, 1046.5],   // 全音阶（高音区）
+      chords: [[65.41, 98, 130.81]],                                       // 稀有的低音 C 空五度
+      chordEvery: [18, 28], chordDur: [14, 18], padVol: .05, lp: 620,
+      note: playBell, noteGap: [1.4, 3.8], noteDur: [3.5, 5.2], phrase: [2, 4], rest: [5, 10], lowOct: 0
+    }
+  };
+  const mR = a => a[0] + Math.random() * (a[1] - a[0]);
+  const mNote = { t: 0, chordT: 0, nextNote: 1.5, nextChord: 5, idx: 4, phrase: 0, chordI: 0 };
+  function updateMusic(dt) {
+    if (!musicOn || !audioCtx || document.hidden) return;
+    const st = MUSIC[cur] || MUSIC.overworld;
+    mNote.t += dt; mNote.chordT += dt;
+    if (mNote.chordT >= mNote.nextChord) {
+      mNote.chordT = 0;
+      mNote.nextChord = mR(st.chordEvery);
+      playPad(st.chords[mNote.chordI++ % st.chords.length], mR(st.chordDur), st.padVol, st.lp);
+    }
+    if (mNote.t >= mNote.nextNote) {
+      mNote.t = 0;
+      if (mNote.phrase <= 0) mNote.phrase = Math.round(mR(st.phrase));
+      mNote.idx = Math.max(0, Math.min(st.scale.length - 1,
+        mNote.idx + [-2, -1, -1, 1, 1, 2, 0][(Math.random() * 7) | 0]));
+      st.note(st.scale[mNote.idx] * (Math.random() < st.lowOct ? .5 : 1),
+        mR(st.noteDur), .7 + Math.random() * .3);
+      mNote.phrase--;
+      mNote.nextNote = mNote.phrase > 0 ? mR(st.noteGap) : mR(st.rest);
+    }
+  }
+  function toggleMusic() {
+    musicOn = !musicOn;
+    localStorage.setItem('mc_music', musicOn ? '1' : '0');
+    if (musicOn) { mNote.t = mNote.nextNote; mNote.chordT = mNote.nextChord; }  // 开启后尽快起乐
+    applyMusicGain();
+    showToast(musicOn ? `🎵 背景音乐：开（音量 ${Math.round(musicVol * 100)}%）` : '🎵 背景音乐：关');
+    sfx(musicOn ? 660 : 220, .08, 'sine', .07);
+  }
+
+  /* ------------------------------------------------------------
+   * 12.6 材质音效：噪声脉冲 + 低频闷响 合成敲击/破坏/放置/脚步
+   * ------------------------------------------------------------ */
+  let noiseBuf = null;
+  function getNoise() {
+    if (!noiseBuf) {
+      noiseBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * .5 | 0, audioCtx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    return noiseBuf;
+  }
+  // 带通噪声脉冲：材质“沙沙 / 咔哒”质感的核心
+  function noiseHit(vol, dur, freq, q = 1.4, delay = 0) {
+    if (!audioCtx) return;
+    try {
+      const t = audioCtx.currentTime + delay;
+      const src = audioCtx.createBufferSource();
+      src.buffer = getNoise();
+      const f = audioCtx.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = freq * (.85 + Math.random() * .3);   // 每次微变，避免机械感
+      f.Q.value = q;
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(.0006, t + dur);
+      src.connect(f).connect(g).connect(audioCtx.destination);
+      src.start(t); src.stop(t + dur + .02);
+    } catch (e) {}
+  }
+  // 低频闷响：放置 / 重击 / 受伤的“咚”
+  function thump(freq, dur, vol) {
+    if (!audioCtx) return;
+    try {
+      const t = audioCtx.currentTime;
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq, t);
+      o.frequency.exponentialRampToValueAtTime(Math.max(38, freq * .45), t + dur);
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(.0006, t + dur);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(t); o.stop(t + dur + .02);
+    } catch (e) {}
+  }
+  // 挥空：带通中心频率上扫的“嗖”
+  function whoosh() {
+    if (!audioCtx) return;
+    try {
+      const t = audioCtx.currentTime;
+      const src = audioCtx.createBufferSource();
+      src.buffer = getNoise();
+      const f = audioCtx.createBiquadFilter();
+      f.type = 'bandpass'; f.Q.value = 2.2;
+      f.frequency.setValueAtTime(380, t);
+      f.frequency.exponentialRampToValueAtTime(1500, t + .11);
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(.001, t);
+      g.gain.linearRampToValueAtTime(.055, t + .05);
+      g.gain.exponentialRampToValueAtTime(.0006, t + .13);
+      src.connect(f).connect(g).connect(audioCtx.destination);
+      src.start(t); src.stop(t + .15);
+    } catch (e) {}
+  }
+  // 方块 → 声音材质（频段 / 时长 / 闷响频率）
+  const SND_MAT = {
+    stone: { f: 1050, dur: .05, vol: .13, tf: 170 },
+    ore:   { f: 1500, dur: .05, vol: .12, tf: 200, ping: 1900 },
+    wood:  { f: 520,  dur: .07, vol: .15, tf: 190 },
+    soft:  { f: 330,  dur: .09, vol: .1,  tf: 110 },
+    glass: { f: 2600, dur: .035, vol: .09, tf: 0, q: 2.5 },
+    leaf:  { f: 750,  dur: .08, vol: .07, tf: 0, q: .8 }
+  };
+  const SND_OF = {};
+  for (const [ids, mat] of [
+    [[B.STONE, B.COBBLE, B.STONE_BRICK, B.MOSSY_COBBLE, B.BRICK, B.NETHER_BRICK,
+      B.BLACKSTONE, B.END_STONE, B.PURPUR, B.OBSIDIAN, B.QUARTZ, B.SANDSTONE,
+      B.BEDROCK, B.MAGMA, B.GLOWSTONE], 'stone'],
+    [[B.COAL_ORE, B.IRON_ORE, B.GOLD_ORE, B.DIAMOND_ORE, B.QUARTZ_ORE], 'ore'],
+    [[B.LOG, B.PLANK, B.CRAFT_TABLE, B.BOOKSHELF, B.PUMPKIN, B.CRIMSON_PLANK, B.WARPED_PLANK], 'wood'],
+    [[B.GRASS, B.DIRT, B.SAND, B.SOUL_SAND, B.SNOW], 'soft'],
+    [[B.GLASS, B.ICE], 'glass'],
+    [[B.LEAVES, B.WOOL, B.TNT], 'leaf']
+  ]) for (const id of ids) SND_OF[id] = mat;
+  // kind: 'hit' 敲击 | 'break' 破坏 | 'place' 放置 | 'step' 脚步
+  function blockSnd(block, kind) {
+    const m = SND_MAT[SND_OF[block] || 'stone'];
+    if (kind === 'hit') {
+      noiseHit(m.vol, m.dur, m.f, m.q);
+      if (m.ping) sfx(m.ping + Math.random() * 160, .05, 'sine', .04);
+    } else if (kind === 'break') {
+      noiseHit(m.vol * 1.8, m.dur * 2.4, m.f * .8, m.q);
+      if (m.ping) sfx(m.ping * 1.1, .12, 'sine', .05);
+      if (m.tf) thump(m.tf, .13, .2);
+    } else if (kind === 'place') {
+      if (m.tf) thump(m.tf, .09, .17);
+      noiseHit(m.vol * .8, m.dur, m.f * .9, m.q);
+    } else {   // step
+      noiseHit(m.vol * .32, m.dur * .8, m.f * .85, m.q);
+    }
+  }
+  // 攻击命中生物：闷响 + 肉感噪声
+  const hitSnd = () => { thump(190, .1, .2); noiseHit(.16, .06, 650, 1); };
+  // 进食：三声脆嚼
+  const munchSnd = () => { noiseHit(.12, .05, 800, 1); noiseHit(.12, .05, 650, 1, .13); noiseHit(.13, .06, 720, 1, .27); };
+
   /* ============================================================
    * 13. 生命值 / 伤害 / 死亡
    * ============================================================ */
@@ -2416,6 +2663,7 @@
     hurtOverlayEl.style.opacity = 1;
     setTimeout(() => hurtOverlayEl.style.opacity = 0, 250);
     sfx(160, .18, 'sawtooth', .18);
+    thump(120, .16, .22); noiseHit(.12, .07, 480, 1);   // 受击闷响 + 冲击噪声
     if (player.health <= 0) {
       dead = true;
       inventoryOpen = false;                       // 死亡时收起物品库，避免重生后状态残留
@@ -2590,11 +2838,12 @@
     player.exhaustion += .03;                      // 挖掘消耗饱食度
     if (harvest && PICK_TIER[block] && TOOLS[HOTBAR[selected]]?.kind === 'pick') useTool();
     burst(x, y, z, { colors: ['#' + tileAvgColor[BLOCKS[block].tiles[1]].getHexString()], count: 10, spread: 4 });
-    sfx(90 + Math.random() * 40, .09, 'square', .12);
+    blockSnd(block, 'break');
   }
   // 左键按下：优先攻击生物；TNT 即时点燃；基岩提示；其余进入长按挖掘
   function startLeftAction() {
     swing = 1;
+    whoosh();
     const dir = new THREE.Vector3();
     camera.getWorldDirection(dir);
     const ent = rayEntityHit(camera.position, dir, 4.5);
@@ -2635,10 +2884,10 @@
     } else if (tool && tool.kind === 'pick') mult = 1.3;
     mining.progress += dt / (HARDNESS[hit.block] ?? .6) * mult * (harvest ? 1 : .35);
     mining.tick -= dt;
-    if (mining.tick <= 0) {   // 挥臂 + 咔哒声 + 挖掘碎屑
+    if (mining.tick <= 0) {   // 挥臂 + 材质敲击声 + 挖掘碎屑
       mining.tick = .22;
       swing = Math.max(swing, .6);
-      sfx(130 + Math.random() * 70, .04, 'square', .05);
+      blockSnd(hit.block, 'hit');
       burst(hit.x + .5, hit.y + .5, hit.z + .5,
         { colors: ['#' + tileAvgColor[BLOCKS[hit.block].tiles[1]].getHexString()],
           count: 2, spread: 1.5, up: 1.5, life: .3, gravity: 8, size: .5 });
@@ -2665,7 +2914,7 @@
       showToast('这块腐肉不太新鲜…肚子有点难受');
     } else showToast(`吃了「${f.name}」 饱食度 +${f.food}`);
     refreshHunger(); refreshHotbarCounts();
-    sfx(300, .06, 'square', .1); sfx(240, .08, 'square', .08);
+    munchSnd();
     burst(camera.position.x, camera.position.y - .3, camera.position.z,
       { colors: ['#d8824a', '#b8622e'], count: 6, spread: 1.5, up: 1, life: .4, gravity: 6, size: .6 });
     return true;
@@ -2726,7 +2975,7 @@
       player.pos.y = Math.max(player.pos.y, y + 1 + EPS);   // 抬到方块顶
       player.vel.y = Math.max(player.vel.y, 1.6);           // 小弹跳手感
     }
-    sfx(160 + Math.random() * 60, .06, 'square', .1);
+    blockSnd(id, 'place');
   }
   function pickBlock() {
     const blk = currentTarget();
@@ -2800,6 +3049,26 @@
   document.getElementById('sensUp').addEventListener('click', e => { e.stopPropagation(); setSens(.1); });
   sensValEl.textContent = mouseSens.toFixed(1) + '×';
 
+  // 音乐音量 / 开关（开始界面按钮，游戏中按 M）
+  const musicValEl = document.getElementById('musicVal');
+  const musicBtnEl = document.getElementById('musicBtn');
+  function refreshMusicUI() {
+    musicValEl.textContent = Math.round(musicVol * 100) + '%';
+    musicBtnEl.textContent = musicOn ? '开' : '关';
+    musicBtnEl.style.background = musicOn ? '#3a7d2c' : '#a03030';
+  }
+  function setMusicVol(d) {
+    musicVol = Math.max(0, Math.min(1, Math.round((musicVol + d) * 20) / 20));
+    localStorage.setItem('mc_musicvol', String(musicVol));
+    applyMusicGain();
+    refreshMusicUI();
+    showToast(`🎵 音乐音量：${Math.round(musicVol * 100)}%`);
+  }
+  document.getElementById('musicDown').addEventListener('click', e => { e.stopPropagation(); setMusicVol(-.05); });
+  document.getElementById('musicUp').addEventListener('click', e => { e.stopPropagation(); setMusicVol(.05); });
+  musicBtnEl.addEventListener('click', e => { e.stopPropagation(); toggleMusic(); refreshMusicUI(); });
+  refreshMusicUI();
+
   function openInventory() {
     inventoryOpen = true;
     hideHelp();
@@ -2850,6 +3119,7 @@
     if (e.repeat) { keys.add(e.code); return; }
     keys.add(e.code);
     if (e.code === 'KeyH') { toggleHelp(); return; }
+    if (e.code === 'KeyM') { toggleMusic(); return; }
     if (e.code === 'KeyE') { openInventory(); return; }
     if (e.code === 'KeyQ') { dropHeldItem(); return; }
     if (e.code === 'KeyN') { switchDimension(nextDim()); return; }
@@ -2985,6 +3255,7 @@
     } else player.starveT = 0;
   }
   let prevLiquid = null, dustT = 0;
+  let stepDist = 0;   // 脚步声：累计行走距离，到步幅播放材质脚步
   function updatePlayer(dt) {
     const liquid = inWater();
     let ix = 0, iz = 0;
@@ -3035,6 +3306,16 @@
       player.lavaT -= dt;
       if (player.lavaT <= 0) { player.lavaT = .8; damagePlayer(3, '岩浆'); }
     }
+    // 脚步声：脚下方块材质，疾跑步频更快
+    if (player.onGround && !player.fly) {
+      const sp = Math.hypot(player.vel.x, player.vel.z);
+      stepDist += sp * dt;
+      if (stepDist > (sprint ? 1.9 : 2.3) && sp > 1.2) {
+        stepDist = 0;
+        const g = getBlock(Math.floor(player.pos.x), Math.floor(player.pos.y - .1), Math.floor(player.pos.z));
+        if (g) blockSnd(g, 'step');
+      }
+    } else stepDist = 1.5;   // 空中落地后立刻迈出第一步
     if (player.pos.y < -12) {
       player.pos.copy(dims[cur].spawn); player.vel.set(0, 0, 0); player.invulnT = 2;
       showToast('你掉出了世界，已回到出生点');
@@ -3410,6 +3691,7 @@
     updateDrops(dt);
     updateParticles(dt);
     ambientParticles(dt);
+    updateMusic(dt);
     clouds.children.forEach(c => {
       c.position.x += dt * 1.2;
       if (c.position.x > 340) c.position.x = -40;
@@ -3446,7 +3728,10 @@
     mining: () => mining ? { x: mining.x, y: mining.y, z: mining.z, block: mining.block,
       progress: +mining.progress.toFixed(2), stage: Math.round(crackTex.offset.x * 10) } : null,
     help: () => ({ open: helpOpen, visible: helpEl.style.display !== 'none', rows: helpEl.querySelectorAll('tr').length }),
-    toggleHelp };
+    toggleHelp,
+    music: () => ({ on: musicOn, vol: musicVol, style: cur, stats: { ...musicStats }, ctx: !!audioCtx }),
+    toggleMusic, musicReset: () => { musicStats.notes = 0; musicStats.pads = 0; },
+    sndTest: (id, kind) => blockSnd(id, kind), sndFam: id => SND_OF[id] || 'stone?' };
   </script>
 </body>
 </html>
