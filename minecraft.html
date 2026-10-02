@@ -28,11 +28,34 @@
   .slot .num { position: absolute; top: 1px; left: 4px; font-size: 10px; color: rgba(255,255,255,.75); }
   .slot .cnt { position: absolute; bottom: 1px; right: 4px; font-size: 11px; color: #fff;
     text-shadow: 1px 1px 1px #000; font-weight: bold; }
+  .slot .dur { position: absolute; bottom: 4px; left: 6px; height: 3px; border-radius: 2px;
+    background: #5ad04a; box-shadow: 0 0 2px rgba(0,0,0,.8); }
 
-  #hearts { position: fixed; left: 50%; bottom: 74px; transform: translateX(-50%);
-    display: flex; z-index: 10; pointer-events: none;
+  #statusCol { position: fixed; left: 50%; bottom: 74px; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center;
+    z-index: 10; pointer-events: none;
     filter: drop-shadow(1px 1px 1px rgba(0,0,0,.8)); }
-  #hearts canvas { width: 18px; height: 18px; image-rendering: pixelated; margin: 0 1px; }
+  #armorBar { display: flex; margin-bottom: 2px; }
+  #armorBar canvas { width: 16px; height: 16px; image-rendering: pixelated; margin: 0 1px; }
+  #statusBars { display: flex; justify-content: space-between; width: 500px; }
+  #hearts, #hunger { display: flex; }
+  #hunger { flex-direction: row-reverse; }
+  #statusBars canvas { width: 18px; height: 18px; image-rendering: pixelated; margin: 0 1px; }
+
+  /* 封面 */
+  #coverCanvas { width: 100%; height: auto; image-rendering: pixelated;
+    border-radius: 8px; margin-bottom: 10px; border: 2px solid rgba(255,255,255,.22); }
+
+  /* 装备栏（物品库左侧） */
+  #equipCol { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .eslot { width: 54px; height: 54px; background: rgba(0,0,0,.45); position: relative;
+    border: 2px solid rgba(255,255,255,.3); border-radius: 6px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: border-color .07s; }
+  .eslot:hover { border-color: #fff; }
+  .eslot canvas { width: 36px; height: 36px; image-rendering: pixelated; border-radius: 3px; }
+  .eslot .dur { position: absolute; bottom: 3px; left: 5px; height: 3px; border-radius: 2px;
+    background: #5ad04a; box-shadow: 0 0 2px rgba(0,0,0,.8); }
+  .ehint { font-size: 10px; color: #8aa3c0; }
 
   #blockName { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%);
     color: #fff; text-shadow: 0 0 4px #000; font-size: 16px; z-index: 10;
@@ -41,6 +64,12 @@
   #toast { position: fixed; left: 50%; top: 18%; transform: translateX(-50%);
     background: rgba(0,0,0,.6); color: #ffd966; padding: 8px 18px; border-radius: 6px;
     font-size: 14px; z-index: 40; opacity: 0; transition: opacity .4s; pointer-events: none; }
+
+  /* 拾取提示：物品栏右上角，+N 物品名 逐条上浮淡出 */
+  #pickupLog { position: fixed; right: calc(50% - 310px); bottom: 96px;
+    text-align: right; font-size: 13px; color: #fff; z-index: 10;
+    text-shadow: 1px 1px 2px #000; pointer-events: none; }
+  #pickupLog div { transition: opacity .5s, transform .5s; }
 
   #debug { position: fixed; left: 8px; top: 8px; color: #fff; font-size: 12px;
     font-family: Consolas, monospace; text-shadow: 1px 1px 2px #000; z-index: 10;
@@ -118,7 +147,11 @@
   <div id="hurtOverlay"></div>
   <div id="crosshair"></div>
   <div id="toast"></div>
-  <div id="hearts"></div>
+  <div id="pickupLog"></div>
+  <div id="statusCol">
+    <div id="armorBar"></div>
+    <div id="statusBars"><div id="hearts"></div><div id="hunger"></div></div>
+  </div>
   <div id="blockName"></div>
   <div id="debug"></div>
   <div id="dimTag"></div>
@@ -134,6 +167,13 @@
       <h2>🧰 物品库 / 合成台</h2>
       <div class="sub" id="invSub">点击方块放入当前手持栏位</div>
       <div class="cols">
+        <div id="equipCol">
+          <div class="eslot" data-slot="head" title="头盔"></div>
+          <div class="eslot" data-slot="chest" title="胸甲"></div>
+          <div class="eslot" data-slot="legs" title="护腿"></div>
+          <div class="eslot" data-slot="feet" title="靴子"></div>
+          <div class="ehint">装备栏</div>
+        </div>
         <div class="grid" id="invGrid"></div>
         <div class="crafts"><h3>⚒ 合成配方</h3><div id="craftList"></div></div>
       </div>
@@ -152,6 +192,7 @@
 
   <div id="overlay" class="screen">
     <div class="panel">
+      <canvas id="coverCanvas" width="520" height="132"></canvas>
       <h1>🧱 Mini<span>Craft</span> 迷你我的世界</h1>
       <div class="sub">三大维度 · 生物 · 合成 · 40 种方块 · 生命值 · 建筑生成</div>
       <table>
@@ -161,15 +202,21 @@
         <tr><td class="k">双击空格</td><td>飞行</td><td class="k">Shift</td><td>疾跑 / 下降</td></tr>
         <tr><td class="k">E</td><td>物品库 / 合成</td><td class="k">N</td><td>切换维度 🌍🔥🌌</td></tr>
         <tr><td class="k">F5</td><td>第一/第三人称</td><td class="k">F3</td><td>调试信息</td></tr>
-        <tr><td class="k">Q</td><td>丢弃手持物品</td><td class="k">右键(食物)</td><td>进食回血</td></tr>
+        <tr><td class="k">Q</td><td>丢弃手持物品</td><td class="k">右键(食物)</td><td>进食充饥</td></tr>
       </table>
+      <div style="margin:2px 0 10px;font-size:13px;color:#cfe0f0">
+        🖱 鼠标灵敏度：
+        <button class="btn" id="sensDown" style="padding:2px 12px;font-size:15px">−</button>
+        <span id="sensVal" style="color:#ffd966;min-width:42px;display:inline-block">1.0×</span>
+        <button class="btn" id="sensUp" style="padding:2px 12px;font-size:15px">＋</button>
+      </div>
       <div style="margin-bottom:8px">
         <button class="btn" id="dimOver">🌍 主世界</button>
         <button class="btn red" id="dimNether">🔥 下界</button>
         <button class="btn blue" id="dimEnd">🌌 末地</button>
       </div>
       <button class="btn" id="startBtn" style="font-size:17px;padding:10px 34px">点击开始游戏</button>
-      <div class="tip">小心僵尸和岩浆 · 挖矿合成 TNT 可以炸山 · 按 N 或点击上方按钮穿越维度</div>
+      <div class="tip">保持饱食度才能疾跑和回血（饿到 0 会掉血）· 小心僵尸和岩浆 · 按 N 穿越维度 · 新生物：小老鼠 🐭</div>
     </div>
   </div>
 
@@ -246,11 +293,47 @@
     B.BOOKSHELF, B.CRAFT_TABLE, B.PUMPKIN, B.GLOWSTONE, B.WOOL, B.TNT,
     B.COAL_ORE, B.IRON_ORE, B.GOLD_ORE, B.DIAMOND_ORE,
     B.NETHERRACK, B.SOUL_SAND, B.NETHER_BRICK, B.QUARTZ_ORE, B.QUARTZ, B.BLACKSTONE,
-    B.CRIMSON_PLANK, B.WARPED_PLANK, B.MAGMA, B.END_STONE, B.PURPUR, 101, 102];
+    B.CRIMSON_PLANK, B.WARPED_PLANK, B.MAGMA, B.END_STONE, B.PURPUR, 101, 102,
+    110, 111, 112, 113, 114, 115, 116, 120, 121, 122, 123, 124, 125, 126, 127,
+    128, 129, 130, 131, 132];
 
-  // 食物道具（非方块）：右键进食回血；tile 为图集贴图编号
-  const FOODS = { 101: { name:'猪排', tile:47, heal:4 }, 102: { name:'腐肉', tile:48, heal:1 } };
-  const defOf = id => BLOCKS[id] || FOODS[id];
+  // 食物道具（非方块）：右键进食恢复饱食度；tile 为图集贴图编号
+  const FOODS = { 101: { name:'猪排', tile:47, food:8 }, 102: { name:'腐肉', tile:48, food:4, poison:true } };
+  // 工具：镐（挖掘加速+采集等级）与剑（攻击力）；dur 为耐久
+  const TOOLS = {
+    110: { name:'木镐',   tile:49, kind:'pick',  tier:1, dur:60,   max:60 },
+    111: { name:'石镐',   tile:50, kind:'pick',  tier:2, dur:130,  max:130 },
+    112: { name:'铁镐',   tile:51, kind:'pick',  tier:3, dur:250,  max:250 },
+    113: { name:'钻石镐', tile:52, kind:'pick',  tier:4, dur:1000, max:1000 },
+    114: { name:'木剑',   tile:53, kind:'sword', dmg:2, dur:60,   max:60 },
+    115: { name:'铁剑',   tile:54, kind:'sword', dmg:3, dur:160,  max:160 },
+    116: { name:'钻石剑', tile:55, kind:'sword', dmg:4, dur:800,  max:800 },
+  };
+  // 需要镐才能采集的方块 → 所需镐等级（徒手可挖但慢且无掉落）
+  // 装备：头/胸/腿/靴 × 铁/钻石/下界合金；pts=防御点，kbr=击退抗性
+  const ARMOR_SLOTS = ['head', 'chest', 'legs', 'feet'];
+  const ARMOR = {
+    120: { name:'铁头盔',       tile:56, slot:'head', pts:2, tier:1, dur:160, max:160 },
+    121: { name:'铁胸甲',       tile:57, slot:'chest', pts:5, tier:1, dur:220, max:220 },
+    122: { name:'铁护腿',       tile:58, slot:'legs', pts:4, tier:1, dur:200, max:200 },
+    123: { name:'铁靴子',       tile:59, slot:'feet', pts:2, tier:1, dur:170, max:170 },
+    124: { name:'钻石头盔',     tile:60, slot:'head', pts:3, tier:2, dur:340, max:340 },
+    125: { name:'钻石胸甲',     tile:61, slot:'chest', pts:7, tier:2, dur:480, max:480 },
+    126: { name:'钻石护腿',     tile:62, slot:'legs', pts:5, tier:2, dur:450, max:450 },
+    127: { name:'钻石靴子',     tile:63, slot:'feet', pts:3, tier:2, dur:390, max:390 },
+    128: { name:'下界合金头盔', tile:64, slot:'head', pts:3, tier:3, dur:400, max:400, kbr:.1 },
+    129: { name:'下界合金胸甲', tile:65, slot:'chest', pts:8, tier:3, dur:560, max:560, kbr:.1 },
+    130: { name:'下界合金护腿', tile:66, slot:'legs', pts:6, tier:3, dur:520, max:520, kbr:.1 },
+    131: { name:'下界合金靴子', tile:67, slot:'feet', pts:3, tier:3, dur:450, max:450, kbr:.1 },
+    132: { name:'下界合金锭',   tile:68 },
+  };
+  const PICK_TIER = {
+    [B.STONE]:1, [B.COBBLE]:1, [B.MOSSY_COBBLE]:1, [B.STONE_BRICK]:1, [B.BRICK]:1,
+    [B.SANDSTONE]:1, [B.ICE]:1, [B.MAGMA]:1, [B.NETHER_BRICK]:1, [B.BLACKSTONE]:1,
+    [B.END_STONE]:1, [B.PURPUR]:1, [B.COAL_ORE]:1, [B.QUARTZ_ORE]:1,
+    [B.IRON_ORE]:2, [B.GOLD_ORE]:3, [B.DIAMOND_ORE]:3, [B.OBSIDIAN]:4,
+  };
+  const defOf = id => BLOCKS[id] || FOODS[id] || TOOLS[id] || ARMOR[id];
 
   // 方块硬度（秒）：长按挖掘的耗时，决定裂纹进度
   const HARDNESS = {
@@ -281,6 +364,28 @@
     { in: [[B.QUARTZ_ORE, 4]],               out: [B.QUARTZ, 4] },
     { in: [[B.END_STONE, 4]],                out: [B.PURPUR, 4] },
     { in: [[B.OBSIDIAN, 1], [B.GLOWSTONE, 1]], out: [B.GLOWSTONE, 4] },
+    // 工具（简化配方：原木当木棍）
+    { in: [[B.PLANK, 3], [B.LOG, 1]],         out: [110, 1] },   // 木镐
+    { in: [[B.COBBLE, 3], [B.LOG, 1]],        out: [111, 1] },   // 石镐
+    { in: [[B.IRON_ORE, 3], [B.LOG, 1]],      out: [112, 1] },   // 铁镐
+    { in: [[B.DIAMOND_ORE, 3], [B.LOG, 1]],   out: [113, 1] },   // 钻石镐
+    { in: [[B.PLANK, 2], [B.LOG, 1]],         out: [114, 1] },   // 木剑
+    { in: [[B.IRON_ORE, 2], [B.LOG, 1]],      out: [115, 1] },   // 铁剑
+    { in: [[B.DIAMOND_ORE, 2], [B.LOG, 1]],   out: [116, 1] },   // 钻石剑
+    // 装备（简化配方：直接用矿石）
+    { in: [[B.IRON_ORE, 5]],     out: [120, 1] },   // 铁头盔
+    { in: [[B.IRON_ORE, 8]],     out: [121, 1] },   // 铁胸甲
+    { in: [[B.IRON_ORE, 7]],     out: [122, 1] },   // 铁护腿
+    { in: [[B.IRON_ORE, 4]],     out: [123, 1] },   // 铁靴
+    { in: [[B.DIAMOND_ORE, 5]],  out: [124, 1] },   // 钻石头盔
+    { in: [[B.DIAMOND_ORE, 8]],  out: [125, 1] },   // 钻石胸甲
+    { in: [[B.DIAMOND_ORE, 7]],  out: [126, 1] },   // 钻石护腿
+    { in: [[B.DIAMOND_ORE, 4]],  out: [127, 1] },   // 钻石靴
+    { in: [[B.OBSIDIAN, 4], [B.NETHER_BRICK, 4]], out: [132, 1] },   // 下界合金锭（需下界材料）
+    { in: [[124, 1], [132, 1]],  out: [128, 1] },   // 下界合金头盔
+    { in: [[125, 1], [132, 1]],  out: [129, 1] },   // 下界合金胸甲
+    { in: [[126, 1], [132, 1]],  out: [130, 1] },   // 下界合金护腿
+    { in: [[127, 1], [132, 1]],  out: [131, 1] },   // 下界合金靴
   ];
 
   let HOTBAR = [B.PLANK, B.GLASS, B.STONE, B.LOG, B.SAND, B.TNT, B.GLOWSTONE, B.CRAFT_TABLE, B.STONE_BRICK];
@@ -333,7 +438,7 @@
   /* ============================================================
    * 3. 贴图图集（32×32，48 张）
    * ============================================================ */
-  const TILE = 32, NTILES = 50;
+  const TILE = 32, NTILES = 72;
   const atlasCanvas = document.createElement('canvas');
   atlasCanvas.width = TILE * NTILES; atlasCanvas.height = TILE;
   const actx = atlasCanvas.getContext('2d');
@@ -735,6 +840,94 @@
     const x = (texRng() * 30) | 0, y = (texRng() * 30) | 0;
     rect(48, x, y, 2, 2, '#3a2818'); px(48, x, y, '#2a1c10');
   }
+  // 49~55 工具：镐（木/石/铁/钻石）+ 剑（木/铁/钻石）
+  function drawPick(ti, head, dark, light) {
+    // 镐头：顶部拱形 "∩"，两端下垂
+    rect(ti, 8, 10, 3, 3, head);
+    rect(ti, 10, 7, 4, 3, head);
+    rect(ti, 13, 4, 6, 3, head);
+    rect(ti, 18, 3, 5, 3, head);
+    rect(ti, 22, 4, 4, 3, head);
+    rect(ti, 25, 6, 3, 4, head);
+    rect(ti, 27, 9, 2, 4, head);
+    // 内缘阴影
+    rect(ti, 11, 10, 3, 1, dark); rect(ti, 14, 7, 4, 1, dark);
+    rect(ti, 19, 6, 3, 1, dark); rect(ti, 23, 7, 3, 1, dark);
+    rect(ti, 26, 10, 2, 1, dark);
+    // 顶棱高光
+    rect(ti, 15, 3, 7, 1, light);
+    // 柄：从拱心向左下斜伸
+    for (let i = 0; i < 12; i++) rect(ti, 17 - i, 9 + i, 3, 2, i % 3 ? '#6b4a2a' : '#7d5834');
+    px(ti, 18, 9, '#8a6238'); px(ti, 19, 8, '#8a6238');
+  }
+  function drawSword(ti, blade, light, dark) {
+    for (let i = 0; i < 18; i++) {          // 刃身：左下 → 右上
+      rect(ti, 7 + i, 24 - i, 2, 2, blade);
+      px(ti, 9 + i, 24 - i, light);          // 刃口高光
+    }
+    rect(ti, 24, 6, 2, 2, blade);            // 刃端
+    rect(ti, 24, 3, 3, 3, light);            // 剑尖
+    rect(ti, 4, 18, 3, 2, '#8a6a3f');        // 护手（垂直于刃 ↘）
+    rect(ti, 6, 20, 3, 2, '#8a6a3f');
+    rect(ti, 8, 22, 3, 2, '#8a6a3f');
+    for (let i = 0; i < 4; i++) rect(ti, 5 - i, 24 + i, 2, 2, '#4a3520');   // 柄 ↙
+    rect(ti, 1, 28, 3, 3, '#6b4a2a');        // 柄尾
+  }
+  drawPick(49, '#a5793f', '#7c5a30', '#c49a63');     // 木镐
+  drawPick(50, '#8a8a8a', '#6e6e6e', '#ababab');     // 石镐
+  drawPick(51, '#d8d8d8', '#a8a8a8', '#f4f4f4');     // 铁镐
+  drawPick(52, '#4de0cf', '#28b8a8', '#a8f5ea');     // 钻石镐
+  drawSword(53, '#a5793f', '#c49a63', '#7c5a30');    // 木剑
+  drawSword(54, '#d8d8d8', '#f4f4f4', '#a8a8a8');    // 铁剑
+  drawSword(55, '#4de0cf', '#a8f5ea', '#28b8a8');    // 钻石剑
+  // 56~68 装备：头盔/胸甲/护腿/靴 × 铁/钻石/下界合金 + 下界合金锭
+  function drawHelmet(ti, base, dark, light) {
+    rect(ti, 8, 10, 16, 7, base);                     // 盔体
+    rect(ti, 10, 17, 12, 3, base);                    // 下沿
+    rect(ti, 8, 10, 16, 2, light);                    // 顶高光
+    rect(ti, 8, 14, 16, 2, dark);                     // 沿口阴影
+    rect(ti, 11, 18, 3, 2, dark); rect(ti, 18, 18, 3, 2, dark);   // 护鼻侧沿
+    px(ti, 9, 11, light); px(ti, 22, 11, light);
+  }
+  function drawChest(ti, base, dark, light) {
+    rect(ti, 8, 6, 16, 12, base);                     // 胸
+    rect(ti, 4, 7, 4, 7, base); rect(ti, 24, 7, 4, 7, base);      // 肩
+    rect(ti, 8, 6, 16, 2, light);
+    rect(ti, 14, 9, 4, 7, dark);                      // 中缝
+    rect(ti, 8, 16, 16, 2, dark);
+    rect(ti, 4, 7, 4, 1, light); rect(ti, 24, 7, 4, 1, light);
+  }
+  function drawLegs(ti, base, dark, light) {
+    rect(ti, 9, 7, 14, 7, base);                      // 腰
+    rect(ti, 9, 14, 6, 11, base); rect(ti, 17, 14, 6, 11, base);  // 双腿
+    rect(ti, 9, 7, 14, 2, light);
+    rect(ti, 14, 9, 2, 12, dark);                     // 裆缝
+    rect(ti, 9, 24, 6, 1, dark); rect(ti, 17, 24, 6, 1, dark);
+  }
+  function drawBoots(ti, base, dark, light) {
+    rect(ti, 7, 12, 7, 7, base); rect(ti, 18, 12, 7, 7, base);    // 靴筒
+    rect(ti, 5, 19, 10, 3, base); rect(ti, 17, 19, 10, 3, base);  // 鞋头
+    rect(ti, 7, 12, 7, 2, light); rect(ti, 18, 12, 7, 2, light);
+    rect(ti, 5, 21, 10, 1, dark); rect(ti, 17, 21, 10, 1, dark);
+  }
+  function drawIngot(ti, base, dark, light) {
+    rect(ti, 8, 12, 16, 3, light);                    // 顶面
+    rect(ti, 7, 15, 18, 7, base);                     // 正面
+    rect(ti, 7, 20, 18, 2, dark);
+    px(ti, 10, 13, '#ffffff');
+  }
+  const TIER_COL = {
+    iron:     ['#d8d8d8', '#a8a8a8', '#f4f4f4'],
+    diamond:  ['#4de0cf', '#28b8a8', '#a8f5ea'],
+    netherite: ['#584850', '#3a3038', '#88707c'],
+  };
+  drawHelmet(56, ...TIER_COL.iron);      drawChest(57, ...TIER_COL.iron);
+  drawLegs(58, ...TIER_COL.iron);        drawBoots(59, ...TIER_COL.iron);
+  drawHelmet(60, ...TIER_COL.diamond);   drawChest(61, ...TIER_COL.diamond);
+  drawLegs(62, ...TIER_COL.diamond);     drawBoots(63, ...TIER_COL.diamond);
+  drawHelmet(64, ...TIER_COL.netherite); drawChest(65, ...TIER_COL.netherite);
+  drawLegs(66, ...TIER_COL.netherite);   drawBoots(67, ...TIER_COL.netherite);
+  drawIngot(68, '#584850', '#3a3038', '#88707c');
 
   const tileAvgColor = [];
   for (let ti = 0; ti < NTILES; ti++) {
@@ -882,7 +1075,7 @@
         }
       }
     }
-    d.spawnPigSheep = { pig: 7, sheep: 7, zombie: 6 };
+    d.spawnPigSheep = { pig: 7, sheep: 7, zombie: 6, mouse: 6 };
   }
 
   function tryHut(x0, z0, r) {
@@ -1256,6 +1449,16 @@
       }
     });
   }
+  // 32×32 高细节贴图（第一人称手臂用）
+  function tex32(painter) {
+    const c = document.createElement('canvas'); c.width = 32; c.height = 32;
+    const x = c.getContext('2d');
+    painter((px, py, w, h, col) => { x.fillStyle = col; x.fillRect(px, py, w, h); });
+    const t = new THREE.CanvasTexture(c);
+    t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter;
+    t.generateMipmaps = false; t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
   const TEX = {
     pigBody: speckleTex('#ec9c9c', ['#f2b0b0', '#e09090', '#f6b8b8'], .1),
     pigSnout: tex16(p => {
@@ -1297,8 +1500,43 @@
     }),
     playerArm: tex16(p => {
       p(0, 0, 16, 16, '#e8b490');
-      p(0, 0, 16, 6, '#2e8b8b'); p(0, 6, 16, 1, '#267575');   // 短袖
+      p(0, 0, 16, 6, '#2e8b8b'); p(0, 5, 16, 1, '#267575');   // 短袖折边
+      p(0, 12, 16, 1, '#d49a76');                              // 腕褶
+      p(3, 8, 2, 2, '#dca884'); p(11, 9, 2, 2, '#dca884');     // 皮肤斑
     }),
+    // 第一人称手臂：侧面（袖→腕→指根）、肩端截面（织物）、手端截面（手掌指缝）
+    armSide: tex32(p => {
+      for (let y = 0; y < 14; y++) for (let x = 0; x < 32; x++)
+        p(x, y, 1, 1, (x + y) % 4 === 0 ? '#267575' : '#2e8b8b');   // 织物袖
+      p(0, 12, 32, 2, '#1f5f5f'); p(0, 14, 32, 1, '#3a9d9d');       // 袖口折边
+      for (let y = 15; y < 32; y++) for (let x = 0; x < 32; x++) {
+        const n = noise2(x * .3 + 3, y * .3 + 8);
+        p(x, y, 1, 1, n > .7 ? '#f0c09c' : n < .2 ? '#d49a76' : '#e8b490');
+      }
+      p(4, 19, 3, 2, '#dca884'); p(24, 21, 3, 2, '#dca884');        // 皮肤斑
+      p(0, 25, 32, 2, '#c88a68'); p(0, 25, 32, 1, '#d49a76');       // 腕褶
+      for (let x = 4; x < 32; x += 7) p(x, 28, 1, 4, '#c88a68');    // 指根阴影
+      for (let x = 5; x < 32; x += 7) p(x, 29, 1, 3, '#f0c09c');    // 指背亮线
+    }),
+    armShoulder: tex32(p => {
+      for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++)
+        p(x, y, 1, 1, (x + y) % 4 === 0 ? '#267575' : '#2e8b8b');
+      p(0, 0, 32, 2, '#3a9d9d'); p(0, 30, 32, 2, '#1f5f5f');
+      p(13, 13, 6, 6, '#246a6a');                                    // 接缝
+    }),
+    armHand: tex32(p => {
+      for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+        const n = noise2(x * .4 + 9, y * .4 + 2);
+        p(x, y, 1, 1, n > .72 ? '#f0c09c' : n < .18 ? '#d49a76' : '#e8b490');
+      }
+      p(0, 0, 32, 3, '#d49a76');                                     // 指节
+      for (let x = 7; x < 32; x += 7) p(x, 0, 1, 9, '#c88a68');      // 手指缝
+      p(4, 4, 3, 3, '#f4cba6'); p(12, 4, 3, 3, '#f4cba6');           // 指甲
+      p(20, 4, 3, 3, '#f4cba6'); p(28, 4, 3, 3, '#f4cba6');
+      p(0, 30, 32, 2, '#c88a68');                                    // 掌根
+    }),
+    mouseFur: speckleTex('#8a8a92', ['#7a7a84', '#96969e', '#6e6e78'], .12),
+    mouseEar: speckleTex('#e8a8b0', ['#d898a2', '#f2b8c0'], .1),
   };
   const MOB_FACES = {
     pig: tex16(p => {
@@ -1347,6 +1585,13 @@
       p(10, 6, 3, 2, '#ffffff'); p(10, 6, 2, 2, '#3a5ac8');   // 右眼
       p(7, 8, 2, 3, '#dca884');                               // 鼻影
       p(5, 12, 6, 1, '#8a5a4a');                              // 嘴
+    }),
+    mouse: tex16(p => {
+      p(0, 0, 16, 16, '#8a8a92');
+      p(0, 0, 16, 3, '#96969e');
+      p(3, 6, 2, 2, '#101018'); p(11, 6, 2, 2, '#101018');    // 圆眼
+      p(6, 11, 4, 3, '#d898a2'); p(7, 12, 2, 1, '#b87888');   // 粉鼻
+      p(1, 11, 2, 1, '#c8c8d0'); p(13, 11, 2, 1, '#c8c8d0');  // 胡须
     }),
   };
   // 贴图部件：六面共用皮肤贴图 × 面向明暗，front 可换脸贴图；材质/几何体全局缓存
@@ -1431,9 +1676,36 @@
       apivot.add(arm); g.add(apivot); arms.push(apivot);
     }
     addShadow(g, .4);
-    return { group: g, head: headPivot, legs, arms, tail: null };
+    return { group: g, head: headPivot, body, legs, arms, tail: null };
+  }
+  // 小老鼠：小巧四足 + 圆耳朵 + 粉鼻 + 长尾巴
+  function buildMouse() {
+    const g = new THREE.Group();
+    const body = texturedPart(.3, .2, .42, TEX.mouseFur);
+    body.position.set(0, .17, -.02); g.add(body);
+    const head = texturedPart(.2, .17, .2, TEX.mouseFur, MOB_FACES.mouse);
+    head.position.set(0, .2, .27); g.add(head);
+    for (const s of [-1, 1]) {
+      const ear = texturedPart(.11, .13, .02, TEX.mouseEar);
+      ear.position.set(s * .1, .33, .22); ear.rotation.x = -.25;
+      g.add(ear);
+    }
+    const tail = texturedPart(.03, .03, .34, TEX.mouseFur);
+    tail.position.set(0, .18, -.32); tail.rotation.x = .35;
+    g.add(tail);
+    const legs = [];
+    for (const [lx, lz] of [[-.09, .12], [.09, .12], [-.09, -.12], [.09, -.12]]) {
+      const leg = texturedPart(.06, .12, .06, TEX.mouseFur);
+      const pivot = new THREE.Group();
+      pivot.position.set(lx, .12, lz); leg.position.y = -.06;
+      pivot.add(leg); g.add(pivot); legs.push(pivot);
+    }
+    addShadow(g, .22);
+    return { group: g, head, legs, arms: [], tail };
   }
   const MOB_DEFS = {
+    mouse:    { hp: 2, speed: 1.9, chaseSpeed: 0,   hostile: false, halfW: .18, height: .35,
+                build: buildMouse },
     pig:      { hp: 3, speed: 1.3, chaseSpeed: 0,   hostile: false, halfW: .35, height: .9,
                 build: () => buildQuadruped(TEX.pigBody, TEX.pigBody, TEX.pigLeg, MOB_FACES.pig,
                   { ears: true, tail: true, snout: true }) },
@@ -1461,22 +1733,123 @@
     pos: new THREE.Vector3(), vel: new THREE.Vector3(),
     yaw: 0, pitch: 0, onGround: false, fly: false,
     halfW: PW, height: PH, health: 20, maxHealth: 20,
+    hunger: 20, maxHunger: 20, exhaustion: 0, poisonT: 0, starveT: 0, sprintDenyT: 0,
     lastHurt: -99, regenT: 0, lavaT: 0, invulnT: 0,
   };
   // 第三人称模型（史蒂夫风格贴图）
   const playerModel = buildHumanoid(TEX.playerSkin, TEX.playerShirt, TEX.playerPants, MOB_FACES.player, TEX.playerArm);
   playerModel.group.visible = false;
   scene.add(playerModel.group);
-  // 第一人称手臂 + 手持方块
+
+  /* ---- 装备系统：状态、穿脱、护甲外观 ---- */
+  const equipment = { head: 0, chest: 0, legs: 0, feet: 0 };
+  const armorDur = { head: 0, chest: 0, legs: 0, feet: 0 };
+  const armorTotal = () => ARMOR_SLOTS.reduce((s, k) => s + (equipment[k] ? ARMOR[equipment[k]].pts : 0), 0);
+  const kbrMult = () => 1 - ARMOR_SLOTS.reduce((s, k) => s + (equipment[k] ? (ARMOR[equipment[k]].kbr || 0) : 0), 0);
+  // 第三人称护甲覆盖层
+  const ARMOR_SHADE = [.75, .75, 1, .6, .88, .7];
+  function colorBox(w, h, d, hex) {
+    const mats = ARMOR_SHADE.map(s => new THREE.MeshBasicMaterial({ color: new THREE.Color(hex).multiplyScalar(s) }));
+    return { mesh: new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mats), mats };
+  }
+  const armorOverlays = [];
+  {
+    const helm = colorBox(.56, .5, .56, '#fff');
+    helm.mesh.position.y = .26; playerModel.head.add(helm.mesh);
+    armorOverlays.push({ ...helm, slot: 'head' });
+    const chest = colorBox(.56, .76, .32, '#fff');
+    chest.mesh.position.set(0, 1.16, 0); playerModel.group.add(chest.mesh);
+    armorOverlays.push({ ...chest, slot: 'chest' });
+    playerModel.arms.forEach(a => {   // 护肩（随胸甲）
+      const pad = colorBox(.26, .3, .26, '#fff');
+      pad.mesh.position.y = -.1; a.add(pad.mesh);
+      armorOverlays.push({ ...pad, slot: 'chest' });
+    });
+    playerModel.legs.forEach(l => {
+      const leg = colorBox(.26, .44, .26, '#fff');
+      leg.mesh.position.y = -.16; l.add(leg.mesh);
+      armorOverlays.push({ ...leg, slot: 'legs' });
+      const boot = colorBox(.28, .2, .28, '#fff');
+      boot.mesh.position.y = -.62; l.add(boot.mesh);
+      armorOverlays.push({ ...boot, slot: 'feet' });
+    });
+  }
+  const ARMOR_TIER_COL = { 1: '#d8d8d8', 2: '#4de0cf', 3: '#584850' };
+  function setArmorVisual() {
+    const tmp = new THREE.Color();
+    for (const o of armorOverlays) {
+      const id = equipment[o.slot];
+      if (id) {
+        tmp.set(ARMOR_TIER_COL[ARMOR[id].tier] || '#fff');
+        o.mats.forEach((m, i) => m.color.copy(tmp).multiplyScalar(ARMOR_SHADE[i]));
+        o.mesh.visible = true;
+      } else o.mesh.visible = false;
+    }
+  }
+  function equipItem(id) {
+    const a = ARMOR[id];
+    if (!a || a.slot === undefined) return false;
+    if (invCount(id) <= 0) { showToast('没有这件装备'); return true; }
+    if (equipment[a.slot]) unequipItem(a.slot, true);
+    invAdd(id, -1);
+    equipment[a.slot] = id;
+    armorDur[a.slot] = a.max;
+    sfx(520, .06, 'sine', .1); sfx(660, .06, 'sine', .08);
+    showToast(`装备了「${a.name}」 防御 +${a.pts}`);
+    refreshEquipUI(); refreshArmorBar(); setArmorVisual(); refreshHotbarCounts();
+    return true;
+  }
+  function unequipItem(slot, silent) {
+    const id = equipment[slot];
+    if (!id) return;
+    equipment[slot] = 0;
+    invAdd(id, 1);
+    if (!silent) sfx(300, .05, 'sine', .08);
+    refreshEquipUI(); refreshArmorBar(); setArmorVisual(); refreshHotbarCounts();
+  }
+  // 第一人称手臂：粗手臂，+Y 为肩、-Y 为手，整体旋转让手掌朝前
   const armGroup = new THREE.Group();
-  const armMesh = texturedPart(.16, .16, .5, TEX.playerArm);
-  armMesh.position.set(0, 0, -.2);
-  armGroup.add(armMesh);
+  {
+    const shades = [.75, .75, 1, .9, .85, .68];
+    const mats = [
+      new THREE.MeshBasicMaterial({ map: TEX.armSide, color: new THREE.Color().setScalar(shades[0]) }),
+      new THREE.MeshBasicMaterial({ map: TEX.armSide, color: new THREE.Color().setScalar(shades[1]) }),
+      new THREE.MeshBasicMaterial({ map: TEX.armShoulder, color: new THREE.Color().setScalar(shades[2]) }),
+      new THREE.MeshBasicMaterial({ map: TEX.armHand, color: new THREE.Color().setScalar(shades[3]) }),
+      new THREE.MeshBasicMaterial({ map: TEX.armSide, color: new THREE.Color().setScalar(shades[4]) }),
+      new THREE.MeshBasicMaterial({ map: TEX.armSide, color: new THREE.Color().setScalar(shades[5]) }),
+    ];
+    const armMesh = new THREE.Mesh(new THREE.BoxGeometry(.22, .58, .22), mats);
+    armMesh.rotation.x = Math.PI / 2;   // +Y(肩端) 转向镜头，手掌(-Y) 朝前
+    armGroup.add(armMesh);
+  }
   let heldMesh = null;
   camera.add(armGroup);
   scene.add(camera);
   const cubeGeoCache = new Map();
+  const spriteMatCache = new Map();
+  // 工具/食物渲染为带厚度的立牌（正反面贴图，侧面木质）
+  function makeItemSprite(id, size) {
+    const t = defOf(id);
+    let mats = spriteMatCache.get(id);
+    if (!mats) {
+      const tex = atlasTex.clone();
+      tex.needsUpdate = true;
+      tex.repeat.set(1 / NTILES, 1);
+      tex.offset.set(t.tile / NTILES, 0);
+      const edge = new THREE.MeshBasicMaterial({ color: 0x6b4a2a });
+      const face = new THREE.MeshBasicMaterial({ map: tex });
+      const back = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color().setScalar(.75) });
+      mats = [edge, edge, edge, edge, face, back];
+      spriteMatCache.set(id, mats);
+    }
+    const gk = 'sprite' + id + '@' + size;
+    let geo = cubeGeoCache.get(gk);
+    if (!geo) { geo = new THREE.BoxGeometry(size, size, size * .12); cubeGeoCache.set(gk, geo); }
+    return new THREE.Mesh(geo, mats);
+  }
   function makeBlockCube(id, size) {
+    if (!BLOCKS[id]) return makeItemSprite(id, size);   // 工具/食物走立牌
     const key = id + '@' + size;
     let g = cubeGeoCache.get(key);
     if (!g) {
@@ -1505,12 +1878,12 @@
     return new THREE.Mesh(g, solidMat);
   }
   function refreshHeld() {
-    if (heldMesh) { armGroup.remove(heldMesh); heldMesh.geometry.dispose(); heldMesh = null; }
+    if (heldMesh) { armGroup.remove(heldMesh); heldMesh = null; }   // 几何体全局缓存，不释放
     const id = HOTBAR[selected];
     if (!id) return;
-    heldMesh = makeBlockCube(id, .26);
-    heldMesh.position.set(0, -.06, -.42);
-    heldMesh.rotation.set(.2, Math.PI / 5, 0);
+    heldMesh = makeBlockCube(id, .27);
+    heldMesh.position.set(.03, -.05, -.38);
+    heldMesh.rotation.set(.15, .45, .05);
     armGroup.add(heldMesh);
   }
   let viewMode = 0;   // 0 第一人称 1 第三人称
@@ -1665,7 +2038,8 @@
           e.attackCd = 1.1;
           damagePlayer(e.def.dmg || 2, `${MOB_CN[e.type]}的攻击`);
           const kb = new THREE.Vector3(dx, 0, dz).normalize();
-          player.vel.x += kb.x * 7; player.vel.z += kb.z * 7; player.vel.y = Math.max(player.vel.y, 4);
+          const km = kbrMult();   // 下界合金击退抗性
+          player.vel.x += kb.x * 7 * km; player.vel.z += kb.z * 7 * km; player.vel.y = Math.max(player.vel.y, 4);
         }
       } else {
         e.changeT -= dt;
@@ -1733,7 +2107,7 @@
       }
     }
   }
-  const MOB_CN = { pig: '猪', sheep: '羊', zombie: '僵尸', pigman: '僵尸猪人', enderman: '末影人' };
+  const MOB_CN = { pig: '猪', sheep: '羊', zombie: '僵尸', pigman: '僵尸猪人', enderman: '末影人', mouse: '老鼠' };
 
   // 玩家攻击生物：射线 vs 实体 AABB
   function rayEntityHit(o, d, max) {
@@ -1788,6 +2162,35 @@
       p.m.scale.setScalar(Math.min(1, p.life / p.maxLife * 1.5));
     }
   }
+  // 拾取提示：同一物品短时间内合并计数，上浮淡出
+  const pickupLogEl = document.getElementById('pickupLog');
+  const pickupLines = [];
+  function pickupToast(id, n) {
+    const now = performance.now();
+    const last = pickupLines[pickupLines.length - 1];
+    if (last && last.id === id && now - last.t < 2000) {
+      last.count += n; last.t = now;
+      last.el.textContent = `+${last.count} ${defOf(id).name}`;
+      clearTimeout(last.timer);
+      last.timer = setTimeout(() => fadeLine(last), 1500);
+    } else {
+      const el = document.createElement('div');
+      el.textContent = `+${n} ${defOf(id).name}`;
+      pickupLogEl.appendChild(el);
+      const line = { id, count: n, el, t: now, timer: null };
+      line.timer = setTimeout(() => fadeLine(line), 1500);
+      pickupLines.push(line);
+      if (pickupLines.length > 5) fadeLine(pickupLines[0]);
+    }
+  }
+  function fadeLine(line) {
+    const i = pickupLines.indexOf(line);
+    if (i < 0) return;
+    pickupLines.splice(i, 1);
+    line.el.style.opacity = 0;
+    line.el.style.transform = 'translateY(-14px)';
+    setTimeout(() => line.el.remove(), 500);
+  }
 
   /* ============================================================
    * 11.5 掉落物系统（方块/食物实体，磁吸拾取）
@@ -1834,6 +2237,7 @@
         if (dist < 1.0) {   // 拾取
           invAdd(d.id, d.count);
           refreshHotbarCounts();
+          pickupToast(d.id, d.count);   // "+N 物品名" 浮动提示
           sfx(720 + Math.random() * 240, .06, 'sine', .09);
           burst(d.pos.x, d.pos.y + .2, d.pos.z,
             { colors: ['#8fe86a', '#c0f0a0'], count: 4, spread: 1.5, up: 2, life: .3, gravity: 4, size: .6 });
@@ -1913,8 +2317,66 @@
       heartsEl.appendChild(heartCanvas(kind));
     }
   }
+  // 饱食度鸡腿图标（kind: 2=满 1=半 0=空）
+  const DRUM_PAT = [
+    '....MMM.',
+    '...MMMMM',
+    '..MMMMMM',
+    '..MMMMM.',
+    '.BMMMM..',
+    'BBB.....',
+    'WBB.....',
+    'WW......',
+  ];
+  const hungerEl = document.getElementById('hunger');
+  function drumCanvas(kind) {
+    const c = document.createElement('canvas');
+    c.width = 18; c.height = 18;
+    const x = c.getContext('2d');
+    function paint(m, b, w) {
+      DRUM_PAT.forEach((row, ry) => [...row].forEach((ch, rx) => {
+        if (ch === '.') return;
+        x.fillStyle = ch === 'M' ? m : ch === 'B' ? b : w;
+        x.fillRect(rx * 2, ry * 2 + 1, 2, 2);
+      }));
+    }
+    paint('#3a3a3a', '#2a2a2a', '#484848');   // 空底轮廓
+    if (kind === 2) {
+      paint('#c07830', '#8a4f1e', '#ece4d4');
+      x.fillStyle = '#e8a86a'; x.fillRect(10, 3, 4, 2);
+    } else if (kind === 1) {
+      x.save();
+      x.beginPath(); x.rect(0, 0, 9, 18); x.clip();
+      paint('#c07830', '#8a4f1e', '#ece4d4');
+      x.fillStyle = '#e8a86a'; x.fillRect(4, 5, 3, 2);
+      x.restore();
+    }
+    return c;
+  }
+  function refreshHunger() {
+    hungerEl.innerHTML = '';
+    for (let i = 0; i < 10; i++) {
+      const kind = player.hunger >= (i + 1) * 2 ? 2 : player.hunger === i * 2 + 1 ? 1 : 0;
+      hungerEl.appendChild(drumCanvas(kind));
+    }
+  }
   function damagePlayer(dmg, reason) {
     if (dead || player.invulnT > 0 || player.fly) return;
+    const armor = armorTotal();
+    if (armor > 0) {   // 护甲减伤（最多 80%），并消耗各部位耐久
+      dmg = Math.max(1, Math.round(dmg * (1 - Math.min(.8, armor * .04))));
+      for (const slot of ARMOR_SLOTS) {
+        if (!equipment[slot]) continue;
+        armorDur[slot]--;
+        if (armorDur[slot] <= 0) {
+          showToast(`「${ARMOR[equipment[slot]].name}」坏掉了！`);
+          equipment[slot] = 0;
+          setArmorVisual(); refreshArmorBar();
+          sfx(80, .2, 'sawtooth', .15);
+        }
+      }
+      refreshEquipUI();
+    }
     player.health -= dmg;
     player.lastHurt = performance.now() / 1000;
     player.invulnT = .5;
@@ -1933,6 +2395,9 @@
   }
   document.getElementById('respawnBtn').addEventListener('click', () => {
     player.health = player.maxHealth;
+    player.hunger = player.maxHunger;
+    player.exhaustion = 0; player.poisonT = 0; player.starveT = 0;
+    refreshHunger();
     player.invulnT = 3;
     dead = false;
     deathEl.style.display = 'none';
@@ -1954,7 +2419,7 @@
     r.in.forEach(([id, n]) => invAdd(id, -n));
     invAdd(r.out[0], r.out[1]);
     sfx(660, .07, 'sine', .1); sfx(880, .07, 'sine', .08);
-    showToast(`合成成功：${BLOCKS[r.out[0]].name} ×${r.out[1]}`);
+    showToast(`合成成功：${defOf(r.out[0]).name} ×${r.out[1]}`);
     refreshHotbarCounts();
     refreshInventoryUI();
   }
@@ -2058,7 +2523,7 @@
     if (pd < R + 2 && !player.fly) {
       damagePlayer(Math.ceil(6 * (1 - pd / (R + 2))), 'TNT 爆炸');
       const kb = new THREE.Vector3(player.pos.x - cx, .5, player.pos.z - cz).normalize();
-      player.vel.add(kb.multiplyScalar(10));
+      player.vel.add(kb.multiplyScalar(10 * kbrMult()));
     }
     shake = Math.max(shake, .5 * (1 - Math.min(1, pd / 24)));
     boomSfx();
@@ -2070,10 +2535,28 @@
            bz + 1 > player.pos.z - PW && bz < player.pos.z + PW;
   }
   let attackCd = 0;
-  function breakBlockAt(x, y, z, block) {
+  const toolDur = {};   // 工具当前耐久（未记录时视为满）
+  function useTool() {  // 消耗 1 点耐久，归零则损坏
+    const id = HOTBAR[selected], t = TOOLS[id];
+    if (!t || invCount(id) <= 0) return;
+    if (toolDur[id] === undefined) toolDur[id] = t.max;
+    toolDur[id]--;
+    refreshHotbarCounts();
+    if (toolDur[id] <= 0) {
+      invAdd(id, -1);
+      delete toolDur[id];
+      showToast(`「${t.name}」坏掉了！`);
+      sfx(80, .25, 'sawtooth', .2);
+      refreshHeld();
+    }
+  }
+  function breakBlockAt(x, y, z, block, harvest = true) {
     setBlockData(x, y, z, removedFill(x, y, z));
     rebuildAt(x, z);
-    spawnDrop(block, 1, x + .5, y + .4, z + .5);   // 弹出掉落物
+    if (harvest) spawnDrop(block, 1, x + .5, y + .4, z + .5);   // 采集等级不够则无掉落
+    else showToast(`需要更好的镐才能采集「${BLOCKS[block].name}」`);
+    player.exhaustion += .03;                      // 挖掘消耗饱食度
+    if (harvest && PICK_TIER[block] && TOOLS[HOTBAR[selected]]?.kind === 'pick') useTool();
     burst(x, y, z, { colors: ['#' + tileAvgColor[BLOCKS[block].tiles[1]].getHexString()], count: 10, spread: 4 });
     sfx(90 + Math.random() * 40, .09, 'square', .12);
   }
@@ -2087,7 +2570,11 @@
     if (ent && (!blk || ent.t < blk.t)) {
       if (attackCd <= 0) {
         attackCd = .35;
-        mobHit(ent.e, 1, new THREE.Vector3(dir.x, 0, dir.z).normalize());
+        player.exhaustion += .1;   // 攻击消耗饱食度
+        const t = TOOLS[HOTBAR[selected]];
+        const dmg = t && t.kind === 'sword' ? t.dmg : 1;   // 剑伤害更高
+        mobHit(ent.e, dmg, new THREE.Vector3(dir.x, 0, dir.z).normalize());
+        if (t && t.kind === 'sword') useTool();
       }
       return;
     }
@@ -2104,7 +2591,17 @@
     if (!hit || hit.block === B.TNT || BLOCKS[hit.block].unbreakable) { resetMining(); return; }
     if (!mining || mining.x !== hit.x || mining.y !== hit.y || mining.z !== hit.z)
       mining = { x: hit.x, y: hit.y, z: hit.z, block: hit.block, progress: 0, tick: 0 };
-    mining.progress += dt / (HARDNESS[hit.block] ?? .6);
+    // 工具加成：镐对石系提速；采集等级不够则变慢且无掉落
+    const tool = TOOLS[HOTBAR[selected]];
+    const needTier = PICK_TIER[hit.block];
+    let mult = 1, harvest = true;
+    if (needTier !== undefined) {
+      if (tool && tool.kind === 'pick') {
+        mult = [0, 2, 4, 6, 8][tool.tier];
+        harvest = tool.tier >= needTier;
+      } else harvest = false;   // 徒手敲石头：慢且白挖
+    } else if (tool && tool.kind === 'pick') mult = 1.3;
+    mining.progress += dt / (HARDNESS[hit.block] ?? .6) * mult * (harvest ? 1 : .35);
     mining.tick -= dt;
     if (mining.tick <= 0) {   // 挥臂 + 咔哒声 + 挖掘碎屑
       mining.tick = .22;
@@ -2119,23 +2616,26 @@
     crackMesh.position.set(hit.x + .5, hit.y + .5, hit.z + .5);
     crackTex.offset.x = stage / 10;
     if (mining.progress >= 1) {
-      breakBlockAt(hit.x, hit.y, hit.z, hit.block);
+      breakBlockAt(hit.x, hit.y, hit.z, hit.block, harvest);
       resetMining();
     }
   }
-  // 进食：手持食物右键
+  // 进食：手持食物右键，恢复饱食度（腐肉可能吃坏肚子）
   function eatFood() {
     const id = HOTBAR[selected], f = FOODS[id];
     if (!f) return false;
     if (invCount(id) <= 0) { showToast(`「${f.name}」数量不足`); return true; }
-    if (player.health >= player.maxHealth) { showToast('生命值已满，不需要进食'); return true; }
+    if (player.hunger >= player.maxHunger) { showToast('已经很饱了，吃不下了'); return true; }
     invAdd(id, -1);
-    player.health = Math.min(player.maxHealth, player.health + f.heal);
-    refreshHearts(); refreshHotbarCounts();
+    player.hunger = Math.min(player.maxHunger, player.hunger + f.food);
+    if (f.poison && Math.random() < .4) {
+      player.poisonT = 10;
+      showToast('这块腐肉不太新鲜…肚子有点难受');
+    } else showToast(`吃了「${f.name}」 饱食度 +${f.food}`);
+    refreshHunger(); refreshHotbarCounts();
     sfx(300, .06, 'square', .1); sfx(240, .08, 'square', .08);
     burst(camera.position.x, camera.position.y - .3, camera.position.z,
       { colors: ['#d8824a', '#b8622e'], count: 6, spread: 1.5, up: 1, life: .4, gravity: 6, size: .6 });
-    showToast(`吃了「${f.name}」 +${f.heal} 生命`);
     return true;
   }
   // Q 键丢弃手持物品
@@ -2167,6 +2667,7 @@
     swing = 1;
     const id = HOTBAR[selected];
     if (FOODS[id]) { eatFood(); return; }   // 手持食物右键 = 进食
+    if (!BLOCKS[id]) { swing = 1; showToast('工具不能放置，用它去挖掘或战斗吧'); return; }
     const blk = currentTarget();
     if (!blk || (blk.nx === 0 && blk.ny === 0 && blk.nz === 0)) return;
     if (!id) { showToast('当前栏位为空，按 E 打开物品库'); return; }
@@ -2244,6 +2745,19 @@
   document.getElementById('startBtn').addEventListener('click', e => { e.stopPropagation(); requestLock(); });
   overlay.addEventListener('click', () => { if (!inventoryOpen && !building && !dead) requestLock(); });
 
+  // 鼠标灵敏度设置（−/＋ 调节，localStorage 持久化）
+  let mouseSens = parseFloat(localStorage.getItem('mc_sens')) || 1;
+  const sensValEl = document.getElementById('sensVal');
+  function setSens(d) {
+    mouseSens = Math.max(.3, Math.min(2.5, Math.round((mouseSens + d) * 10) / 10));
+    localStorage.setItem('mc_sens', String(mouseSens));
+    sensValEl.textContent = mouseSens.toFixed(1) + '×';
+    showToast(`鼠标灵敏度：${mouseSens.toFixed(1)}×`);
+  }
+  document.getElementById('sensDown').addEventListener('click', e => { e.stopPropagation(); setSens(-.1); });
+  document.getElementById('sensUp').addEventListener('click', e => { e.stopPropagation(); setSens(.1); });
+  sensValEl.textContent = mouseSens.toFixed(1) + '×';
+
   function openInventory() {
     inventoryOpen = true;
     overlay.style.display = 'none';
@@ -2272,8 +2786,8 @@
   });
   document.addEventListener('mousemove', e => {
     if (!locked) return;
-    player.yaw -= e.movementX * .0022;
-    player.pitch -= e.movementY * .0022;
+    player.yaw   -= e.movementX * .0022 * mouseSens;
+    player.pitch -= e.movementY * .0022 * mouseSens;
     player.pitch = Math.max(-Math.PI / 2 + .01, Math.min(Math.PI / 2 - .01, player.pitch));
   });
   document.addEventListener('keydown', e => {
@@ -2396,6 +2910,33 @@
     const b = feetIn(player);
     return b === B.WATER ? 'water' : b === B.LAVA ? 'lava' : null;
   }
+  // 饱食度：移动/疾跑/游泳消耗，饱食≥16 回血（回血额外耗食），=0 每 4 秒掉 1 血（不饿死到 2 以下）
+  function updateHunger(dt) {
+    if (player.fly || dead) return;
+    const moving = Math.hypot(player.vel.x, player.vel.z) > .5;
+    const sprinting = moving && (keys.has('ShiftLeft') || keys.has('ShiftRight')) && player.hunger > 6;
+    player.exhaustion += dt * (moving ? (sprinting ? .1 : .02) : .004);
+    if (inWater()) player.exhaustion += dt * .02;
+    if (player.poisonT > 0) { player.poisonT -= dt; player.exhaustion += dt * .8; }   // 腐肉中毒
+    while (player.exhaustion >= 4) {
+      player.exhaustion -= 4;
+      if (player.hunger > 0) { player.hunger--; refreshHunger(); }
+    }
+    const now = performance.now() / 1000;
+    if (player.hunger >= 16 && player.health < player.maxHealth && now - player.lastHurt > 5) {
+      player.regenT += dt;
+      if (player.regenT > 2.2) {
+        player.regenT = 0;
+        player.health = Math.min(player.maxHealth, player.health + 1);
+        player.exhaustion += 2.5;
+        refreshHearts();
+      }
+    }
+    if (player.hunger <= 0) {
+      player.starveT += dt;
+      if (player.starveT > 4) { player.starveT = 0; if (player.health > 2) damagePlayer(1, '饥饿'); }
+    } else player.starveT = 0;
+  }
   let prevLiquid = null, dustT = 0;
   function updatePlayer(dt) {
     const liquid = inWater();
@@ -2408,7 +2949,12 @@
     ix /= len; iz /= len;
     const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
     const dx = ix * cos - iz * sin, dz = ix * -sin - iz * cos;
-    const sprint = keys.has('ShiftLeft') || keys.has('ShiftRight');
+    const wantSprint = keys.has('ShiftLeft') || keys.has('ShiftRight');
+    const sprint = wantSprint && (player.fly || player.hunger > 6);   // 太饿跑不动
+    if (wantSprint && !sprint && !player.fly) {
+      player.sprintDenyT -= dt;
+      if (player.sprintDenyT <= 0) { player.sprintDenyT = 3; showToast('太饿了跑不动，先吃点东西！'); }
+    } else player.sprintDenyT = 0;
     const speed = player.fly ? (sprint ? 16 : 10) : liquid ? 3 : (sprint ? 7 : 4.5);
     const k = 1 - Math.pow(.001, dt);
     player.vel.x += (dx * speed - player.vel.x) * k;
@@ -2429,7 +2975,7 @@
     } else {
       player.vel.y -= 26 * dt;
       player.vel.y = Math.max(player.vel.y, -40);
-      if (keys.has('Space') && player.onGround) { player.vel.y = 8.5; player.onGround = false; sfx(220, .05, 'sine', .05); }
+      if (keys.has('Space') && player.onGround) { player.vel.y = 8.5; player.onGround = false; player.exhaustion += .15; sfx(220, .05, 'sine', .05); }
     }
     prevLiquid = liquid;
     // 摔落伤害
@@ -2446,13 +2992,9 @@
       player.pos.copy(dims[cur].spawn); player.vel.set(0, 0, 0); player.invulnT = 2;
       showToast('你掉出了世界，已回到出生点');
     }
-    // 生命恢复
+    // 饱食度引擎（飞行时冻结）：活动消耗 → 掉鸡腿；吃饱回血；饿到 0 掉血
     player.invulnT = Math.max(0, player.invulnT - dt);
-    const now = performance.now() / 1000;
-    if (player.health < player.maxHealth && now - player.lastHurt > 6) {
-      player.regenT += dt;
-      if (player.regenT > 3) { player.regenT = 0; player.health = Math.min(player.maxHealth, player.health + 1); refreshHearts(); }
-    }
+    updateHunger(dt);
     // 疾跑灰尘
     dustT -= dt;
     if (sprint && player.onGround && !player.fly && (Math.abs(player.vel.x) + Math.abs(player.vel.z)) > 4 && dustT <= 0) {
@@ -2490,8 +3032,9 @@
       playerModel.head.rotation.x = -player.pitch * .7;
     }
     if (swing > 0) swing = Math.max(0, swing - dt * 5);
-    armGroup.position.set(.42, -.38 + bobY(), -.55);
-    armGroup.rotation.set(-Math.sin(swing * Math.PI) * 1.1, 0, 0);
+    const sw = Math.sin(Math.min(1, swing) * Math.PI);
+    armGroup.position.set(.5, -.46 + bobY(), -.58);
+    armGroup.rotation.set(-sw * 1.05, .06, .16 + Math.sin(performance.now() / 800) * .025);   // 内倾 + 呼吸微摆
     function bobY() {
       const spd = Math.hypot(player.vel.x, player.vel.z);
       return player.onGround ? Math.sin(performance.now() / 90) * .012 * Math.min(1, spd / 4) : 0;
@@ -2511,7 +3054,7 @@
   const invSub = document.getElementById('invSub');
   const craftList = document.getElementById('craftList');
   let selected = 0, nameTimer = null, toastTimer = null;
-  const slotCanvases = [], slotCnts = [];
+  const slotCanvases = [], slotCnts = [], slotDurs = [];
 
   function makeIcon(id, size = 32) {
     const c = document.createElement('canvas');
@@ -2520,7 +3063,7 @@
     ictx.imageSmoothingEnabled = false;
     ictx.fillStyle = 'rgba(255,255,255,.12)';
     ictx.fillRect(0, 0, size, size);
-    const tile = BLOCKS[id] ? BLOCKS[id].tiles[1] : FOODS[id].tile;
+    const tile = BLOCKS[id] ? BLOCKS[id].tiles[1] : defOf(id).tile;
     ictx.drawImage(atlasCanvas, tile * TILE, 0, TILE, TILE, 0, 0, size, size);
     return c;
   }
@@ -2535,7 +3078,9 @@
     const num = document.createElement('span'); num.className = 'num'; num.textContent = i + 1;
     const icon = makeIcon(id); slotCanvases.push(icon);
     const cnt = document.createElement('span'); cnt.className = 'cnt'; slotCnts.push(cnt);
-    slot.append(num, icon, cnt);
+    const dur = document.createElement('div'); dur.className = 'dur'; dur.style.display = 'none';
+    slotDurs.push(dur);
+    slot.append(num, icon, cnt, dur);
     slot.addEventListener('click', () => selectSlot(i));
     hotbarEl.appendChild(slot);
   });
@@ -2544,6 +3089,13 @@
       const n = invCount(id);
       slotCnts[i].textContent = n > 0 ? n : '0';
       hotbarEl.children[i].classList.toggle('zero', n <= 0);
+      const t = TOOLS[id], durEl = slotDurs[i];   // 工具耐久条
+      if (t && n > 0) {
+        const d = (toolDur[id] === undefined ? t.max : toolDur[id]) / t.max;
+        durEl.style.display = 'block';
+        durEl.style.width = Math.max(8, d * 100) + '%';
+        durEl.style.background = d > .5 ? '#5ad04a' : d > .25 ? '#e8c04a' : '#e05050';
+      } else durEl.style.display = 'none';
     });
     if (inventoryOpen) refreshInventoryUI();
   }
@@ -2558,10 +3110,11 @@
     cell.append(label, cnt);
     cell.addEventListener('click', e => {
       e.stopPropagation();
+      if (ARMOR[id]) { equipItem(id); refreshInventoryUI(); return; }   // 装备直接穿上
       HOTBAR[selected] = id;
       drawSlotIcon(selected); refreshHotbarCounts(); refreshHeld(); showBlockName();
       closeInventory();
-      showToast(`已将「${BLOCKS[id].name}」放入栏位 ${selected + 1}`);
+      showToast(`已将「${defOf(id).name}」放入栏位 ${selected + 1}`);
     });
     invGrid.appendChild(cell);
     invCells.push({ id, cell, cnt });
@@ -2574,12 +3127,12 @@
     r.in.forEach(([id, n], j) => {
       if (j > 0) row.append(' + ');
       row.appendChild(makeIcon(id, 26));
-      row.append(`${n}×${BLOCKS[id].name}`);
+      row.append(`${n}×${defOf(id).name}`);
     });
     const arrow = document.createElement('span'); arrow.className = 'arrow'; arrow.textContent = ' → ';
     row.appendChild(arrow);
     row.appendChild(makeIcon(r.out[0], 26));
-    row.append(`${r.out[1]}×${BLOCKS[r.out[0]].name}`);
+    row.append(`${r.out[1]}×${defOf(r.out[0]).name}`);
     const btn = document.createElement('button'); btn.textContent = '合成';
     btn.addEventListener('click', e => { e.stopPropagation(); doCraft(i); });
     row.appendChild(btn);
@@ -2593,6 +3146,101 @@
       cell.classList.toggle('zero', n <= 0);
     });
     craftRows.forEach(({ r, btn }) => { btn.disabled = !canCraft(r); });
+  }
+  // 装备栏 UI
+  const equipSlotEls = {};
+  document.querySelectorAll('#equipCol .eslot').forEach(el => {
+    const slot = el.dataset.slot;
+    equipSlotEls[slot] = el;
+    el.addEventListener('click', e => { e.stopPropagation(); unequipItem(slot); refreshInventoryUI(); });
+  });
+  const SLOT_CN = { head: '头盔', chest: '胸甲', legs: '护腿', feet: '靴子' };
+  function refreshEquipUI() {
+    for (const slot of ARMOR_SLOTS) {
+      const el = equipSlotEls[slot], id = equipment[slot];
+      el.innerHTML = '';
+      if (id) {
+        el.appendChild(makeIcon(id, 32));
+        const a = ARMOR[id];
+        const d = (armorDur[slot] || a.max) / a.max;
+        const durEl = document.createElement('div');
+        durEl.className = 'dur';
+        durEl.style.width = Math.max(8, d * 100) + '%';
+        durEl.style.background = d > .5 ? '#5ad04a' : d > .25 ? '#e8c04a' : '#e05050';
+        el.appendChild(durEl);
+      } else {
+        const hint = document.createElement('span');
+        hint.style.cssText = 'font-size:11px;color:#7d95b5';
+        hint.textContent = SLOT_CN[slot];
+        el.appendChild(hint);
+      }
+    }
+  }
+  // 护甲值条（胸甲形图标，位于血条上方）
+  const armorBarEl = document.getElementById('armorBar');
+  const ARMOR_ICON_PAT = ['XX....XX', 'XXXXXXXX', 'XXXXXXXX', '.XXXXXX.', '.XXXXXX.', '..XXXX..', '...XX...'];
+  function armorIconCanvas(kind) {
+    const c = document.createElement('canvas');
+    c.width = 16; c.height = 14;
+    const x = c.getContext('2d');
+    function paint(fill, edge) {
+      ARMOR_ICON_PAT.forEach((row, ry) => [...row].forEach((ch, rx) => {
+        if (ch !== 'X') return;
+        x.fillStyle = edge; x.fillRect(rx * 2, ry * 2, 4, 4);
+        x.fillStyle = fill; x.fillRect(rx * 2 + 1, ry * 2 + 1, 2, 2);
+      }));
+    }
+    paint('#3a3a44', '#22222a');
+    if (kind === 2) paint('#b8c2d8', '#7a8298');
+    else if (kind === 1) {
+      x.save(); x.beginPath(); x.rect(0, 0, 8, 14); x.clip();
+      paint('#b8c2d8', '#7a8298'); x.restore();
+    }
+    return c;
+  }
+  function refreshArmorBar() {
+    const total = armorTotal();
+    armorBarEl.innerHTML = '';
+    if (total <= 0) return;
+    for (let i = 0; i < 10; i++) {
+      const kind = total >= (i + 1) * 2 ? 2 : total === i * 2 + 1 ? 1 : 0;
+      armorBarEl.appendChild(armorIconCanvas(kind));
+    }
+  }
+  // 封面：程序化像素风景（天空/太阳/云/方块地形/树/猪和老鼠客串）
+  function drawCover() {
+    const cv = document.getElementById('coverCanvas');
+    if (!cv) return;
+    const g = cv.getContext('2d');
+    const W = cv.width, H = cv.height, S = 20;
+    g.imagemoothing = false;
+    g.imageSmoothingEnabled = false;
+    const sky = g.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, '#5aa8ec'); sky.addColorStop(1, '#b8e0f8');
+    g.fillStyle = sky; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#ffe9a0'; g.fillRect(W - 92, 14, 38, 38);       // 太阳
+    g.fillStyle = '#fff6cc'; g.fillRect(W - 84, 22, 22, 22);
+    g.fillStyle = 'rgba(255,255,255,.92)';                          // 云
+    for (const [x, y, w] of [[26, 26, 72], [150, 12, 56], [290, 30, 88], [424, 10, 50]]) {
+      g.fillRect(x, y, w, 14); g.fillRect(x + 12, y - 9, w - 28, 10);
+    }
+    const st = (tile, x, y, s) => g.drawImage(atlasCanvas, tile * 32, 0, 32, 32, x, y, s, s);
+    const hAt = i => 3 + Math.round(noise2(i * .35 + 5, 1.7) * 2);
+    for (let i = 0; i < Math.ceil(W / S); i++) {                    // 地形
+      const hgt = hAt(i), x = i * S, y = H - hgt * S;
+      st(hgt >= 5 ? 3 : 0, x, y, S);
+      for (let k = 1; k < hgt; k++) st(2, x, y + k * S, S);
+    }
+    const tx = 84, ty = H - hAt(4) * S;                             // 树
+    st(5, tx, ty - S, S); st(5, tx, ty - 2 * S, S);
+    for (const [dx, dy] of [[-1, -3], [0, -3], [1, -3], [-1, -2], [1, -2]]) st(7, tx + dx * S, ty + dy * S, S);
+    const wy = H - hAt(14) * S;                                     // 水塘
+    st(4, 14 * S, wy, S); st(4, 17 * S, wy, S);
+    st(10, 15 * S, wy + 4, S); st(10, 16 * S, wy + 4, S);
+    g.imageSmoothingEnabled = false;                                // 客串：猪和老鼠
+    g.drawImage(MOB_FACES.pig.image, 0, 0, 16, 16, 330, H - hAt(16) * S - 30, 30, 30);
+    g.drawImage(MOB_FACES.mouse.image, 0, 0, 16, 16, 372, H - hAt(18) * S - 22, 22, 22);
+    g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(0, H - 6, W, 6);    // 地面阴影收边
   }
   function showBlockName() {
     blockNameEl.textContent = `${defOf(HOTBAR[selected]).name} ×${invCount(HOTBAR[selected])}`;
@@ -2635,7 +3283,7 @@
         `FPS: ${fps}\n维度: ${dims[cur].def.label}\n` +
         `坐标: ${player.pos.x.toFixed(1)}, ${player.pos.y.toFixed(1)}, ${player.pos.z.toFixed(1)}\n` +
         `模式: ${player.fly ? '飞行' : inWater() ? '游泳' : player.onGround ? '步行' : '下落'} | 视角: ${viewMode ? '第三人称' : '第一人称'}\n` +
-        `生命: ${player.health}/${player.maxHealth} | 实体: ${entitiesOf().length} | 掉落物: ${drops.length}\n` +
+        `生命: ${player.health}/${player.maxHealth} | 饱食: ${player.hunger}/${player.maxHunger} | 实体: ${entitiesOf().length} | 掉落物: ${drops.length}\n` +
         `手持: ${defOf(HOTBAR[selected]).name} ×${invCount(HOTBAR[selected])}\n` +
         `指向: ${hit ? `${BLOCKS[hit.block].name} (${hit.x},${hit.y},${hit.z})` : '无'}`;
     }
@@ -2672,7 +3320,8 @@
   initialMobs();
   // 初始物品：新手包
   invAdd(B.PLANK, 32); invAdd(B.GLASS, 16); invAdd(B.STONE_BRICK, 8); invAdd(B.TNT, 4);
-  refreshHotbarCounts(); refreshHearts(); selectSlot(0); refreshHeld();
+  refreshHotbarCounts(); refreshHearts(); refreshHunger(); refreshEquipUI(); refreshArmorBar(); drawCover();
+  selectSlot(0); refreshHeld();
   blockNameEl.style.opacity = 0;
 
   // 分批构建初始区块
@@ -2742,7 +3391,9 @@
     setView: v => { viewMode = v; }, damage: damagePlayer,
     spawnDrop, drops: () => drops.length, eatFood,
     place: placeBlock, select: i => selectSlot(i),
-    setHold: v => { leftHeld = v; },
+    setHold: v => { leftHeld = v; }, hungerTick: updateHunger, tools: TOOLS, toolDurState: toolDur,
+    equip: equipItem, equipment, armorTotal: () => armorTotal(), kbr: () => kbrMult(),
+    armorIcons: () => document.querySelectorAll('#armorBar canvas').length,
     state: () => ({ leftHeld, dead, locked, pitch: +player.pitch.toFixed(2),
       target: (() => { try { const h = currentTarget(); return h ? `${h.x},${h.y},${h.z}#${h.block}` : null; } catch (e) { return 'ERR'; } })() }),
     mining: () => mining ? { x: mining.x, y: mining.y, z: mining.z, block: mining.block,
