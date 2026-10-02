@@ -888,38 +888,41 @@
     rect(48, x, y, 2, 2, '#3a2818'); px(48, x, y, '#2a1c10');
   }
   // 49~55 工具：镐（木/石/铁/钻石）+ 剑（木/铁/钻石）
+  // 全部参数化光栅化：旋转坐标系 u=柄轴(右上) v=垂直方向，几何上保证不歪
   function drawPick(ti, head, dark, light) {
-    // 镐头：圆拱 + 两端渐细长尖（左尖、右尖下垂），拱顶收窄出弧度
-    rect(ti, 15, 3, 3, 3, head);              // 拱顶
-    rect(ti, 12, 3, 3, 3, head);              // 顶左
-    rect(ti, 18, 4, 3, 3, head);              // 顶右
-    rect(ti, 10, 5, 3, 3, head);              // 左肩
-    rect(ti, 21, 7, 2, 3, head);              // 右肩（平滑过渡）
-    rect(ti, 8, 7, 2, 3, head);               // 左外弯
-    rect(ti, 6, 9, 2, 3, head);               // 左尖（渐细下垂）
-    rect(ti, 5, 11, 2, 4, head);
-    rect(ti, 23, 10, 2, 3, head);             // 右尖（渐细下垂）
-    rect(ti, 24, 12, 2, 4, head);
-    rect(ti, 13, 6, 3, 1, dark);              // 拱内缘阴影
-    rect(ti, 19, 7, 3, 1, dark);
-    rect(ti, 14, 3, 4, 1, light);             // 拱顶高光
-    // 柄：从拱心正下方 (14,6) 斜插到左下角（与拱顶中心对齐）
-    for (let i = 0; i < 13; i++) rect(ti, 14 - i, 6 + i, 3, 3, i % 3 ? '#6b4a2a' : '#7d5834');
+    const SQ = Math.SQRT2, CX = 16, CY = 14, R = 8, W = 1.8, TH = 1.22;   // 弧心/半径/半宽/半角≈70°
+    eachPx((x, y) => {
+      const dx = x - CX, dy = y - CY;
+      const u = (dx - dy) / SQ, v = (dx + dy) / SQ;
+      const r = Math.hypot(u, v), a = Math.atan2(v, u);
+      if (r >= R - W && r <= R + W && Math.abs(a) <= TH) {                // 镐头：绕柄轴对称的弧带
+        px(ti, x, y, r > R + .5 ? light : r < R - .6 ? dark : head);      // 外缘高光 / 内缘阴影
+        return;
+      }
+      if (u >= -15 && u <= 6.5 && Math.abs(v) <= 1.6)                     // 柄：精确 45°，顶端插进弧带内缘
+        px(ti, x, y, (x + y) % 3 ? '#6b4a2a' : '#7d5834');
+    });
   }
   function drawSword(ti, blade, light, dark) {
-    for (let i = 0; i < 15; i++) {            // 刃身：右上 → 左下
-      rect(ti, 24 - i, 6 + i, 3, 3, blade);
-      rect(ti, 24 - i, 6 + i, 2, 1, light);   // 左上刃口高光（连续）
-      px(ti, 26 - i, 8 + i, dark);            // 右下刃背阴影
-    }
-    rect(ti, 27, 3, 2, 2, light);             // 剑尖（锥形）
-    rect(ti, 26, 4, 2, 2, light);
-    px(ti, 25, 5, light);                      // 补剑尖与刃身之间的缺像素
-    // 护手：垂直于刃身 ↘
-    for (const [x, y] of [[6, 16], [9, 19], [12, 22]]) rect(ti, x, y, 3, 3, '#5d4a3a');
-    // 柄：延续刃轴 ↙，末端柄尾
-    for (let i = 0; i < 4; i++) rect(ti, 9 - i, 22 + i, 3, 3, i % 2 ? '#6b4a2a' : '#7d5834');
-    rect(ti, 3, 27, 3, 3, '#4a3520');
+    const SQ = Math.SQRT2, CX = 17, CY = 15;
+    eachPx((x, y) => {
+      const dx = x - CX, dy = y - CY;
+      const u = (dx - dy) / SQ, v = (dx + dy) / SQ;                       // u 右上+，v 右下+
+      if (u >= 11 && u <= 13.5 && Math.abs(v) <= (13.5 - u) * .62) {      // 剑尖：锥形
+        px(ti, x, y, light); return;
+      }
+      if (u >= -3 && u < 11 && Math.abs(v) <= 1.7) {                      // 刃身
+        px(ti, x, y, v < -.6 ? light : v > .9 ? dark : blade);            // 上刃口高光 / 下刃背阴影
+        return;
+      }
+      if (u >= -6 && u < -3 && Math.abs(v) > 1.7 && Math.abs(v) <= 3.5) { // 护手：垂直横穿刃轴
+        px(ti, x, y, '#5d4a3a'); return;
+      }
+      if (u >= -10.5 && u < -6 && Math.abs(v) <= 1.3) {                   // 柄
+        px(ti, x, y, (x + y) % 2 ? '#6b4a2a' : '#7d5834'); return;
+      }
+      if (u >= -13 && u < -10.5 && Math.abs(v) <= 2.1) px(ti, x, y, '#4a3520');   // 柄尾
+    });
   }
   drawPick(49, '#a5793f', '#7c5a30', '#c49a63');     // 木镐
   drawPick(50, '#8a8a8a', '#6e6e6e', '#ababab');     // 石镐
@@ -3757,18 +3760,14 @@
     music: () => ({ on: musicOn, vol: musicVol, style: cur, stats: { ...musicStats }, ctx: !!audioCtx }),
     toggleMusic, musicReset: () => { musicStats.notes = 0; musicStats.pads = 0; },
     sndTest: (id, kind) => blockSnd(id, kind), sndFam: id => SND_OF[id] || 'stone?',
-    showTiles: (ids, z = 5) => {   // 调试：放大显示图集贴图便于检查
-      document.getElementById('__tileStrip')?.remove();
+    tileURL: (ids, z = 6) => {   // 调试：离屏导出贴图（不向页面添加任何元素）
       const c = document.createElement('canvas');
-      c.id = '__tileStrip';
       c.width = ids.length * 32 * z + 16; c.height = 32 * z + 16;
-      c.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:999;background:#3a3a3a;border:4px solid #1c1c1c';
       const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+      x.fillStyle = '#3a3a3a'; x.fillRect(0, 0, c.width, c.height);
       ids.forEach((id, i) => x.drawImage(atlasCanvas, id * TILE, 0, TILE, TILE, i * 32 * z + 8, 8, 32 * z, 32 * z));
-      document.body.appendChild(c);
-      return 'shown';
-    },
-    hideTiles: () => { document.getElementById('__tileStrip')?.remove(); return 'hidden'; } };
+      return c.toDataURL();
+    } };
   </script>
 </body>
 </html>
