@@ -127,7 +127,8 @@
     align-items: center; justify-content: center;
     background: rgba(10, 20, 35, .55); backdrop-filter: blur(2px); }
   #inventory .panel { background: rgba(20, 28, 40, .96); border: 2px solid rgba(255,255,255,.25);
-    border-radius: 12px; padding: 18px 24px; color: #eee; text-align: center; }
+    border-radius: 12px; padding: 18px 24px; color: #eee; text-align: center;
+    max-height: 92vh; max-width: 96vw; overflow-y: auto; }
   #inventory h2 { margin: 0 0 3px; font-size: 20px; }
   #inventory .sub { color: #9db8d6; font-size: 12px; margin-bottom: 12px; }
   #inventory .cols { display: flex; gap: 20px; align-items: flex-start; }
@@ -144,6 +145,7 @@
   #inventory .cell .cnt { position: absolute; bottom: 2px; right: 4px; font-size: 11px;
     color: #fff; font-weight: bold; text-shadow: 1px 1px 1px #000; }
   #inventory .crafts { width: 320px; text-align: left; }
+  #craftList { max-height: 168px; overflow-y: auto; padding-right: 4px; }
   #inventory .crafts h3 { margin: 0 0 8px; font-size: 15px; color: #ffd966; }
   #inventory .recipe { display: flex; align-items: center; gap: 6px; padding: 5px 6px;
     background: rgba(0,0,0,.3); border-radius: 6px; margin-bottom: 6px; font-size: 12px; }
@@ -155,6 +157,23 @@
   #inventory .hint { margin-top: 10px; font-size: 11px; color: #8aa3c0; }
   .btn.tab { background: #4a5568; padding: 2px 12px; font-size: 12px; }
   .btn.tab.on { background: #3a7d2c; }
+  /* 拖拽合成台 */
+  #craftArea { display: flex; align-items: center; gap: 8px; margin: 4px 0 6px; }
+  #craftGrid { display: grid; grid-template-columns: repeat(3, 46px); gap: 4px; }
+  .cslot, #craftResult { width: 46px; height: 52px; background: rgba(0,0,0,.45);
+    border: 2px solid rgba(255,255,255,.3); border-radius: 6px; position: relative;
+    cursor: grab; display: flex; align-items: center; justify-content: center; }
+  .cslot:hover, #craftResult:hover { border-color: rgba(255,255,255,.6); }
+  .cslot.over { border-color: #ffd966; background: rgba(255,217,102,.18); }
+  #craftResult { border-color: rgba(255,215,120,.6); width: 56px; height: 62px; }
+  .cslot .cnt, #craftResult .cnt, #dragGhost .cnt { position: absolute; right: 3px; bottom: 2px;
+    color: #fff; font-size: 12px; font-weight: bold; text-shadow: 1px 1px 2px #000; }
+  .carrow { font-size: 22px; color: #9db8d6; }
+  #craftHint { font-size: 11px; color: #8aa3c0; min-height: 15px; margin-bottom: 6px; }
+  #dragGhost { position: fixed; z-index: 99; pointer-events: none; opacity: .9;
+    transform: translate(-50%, -50%); filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+  #inventory .cell { cursor: grab; }
+  #inventory .cell:active { cursor: grabbing; }
 </style>
 </head>
 <body>
@@ -199,7 +218,17 @@
           <div class="ehint">装备栏</div>
         </div>
         <div class="grid" id="invGrid"></div>
-        <div class="crafts"><h3>⚒ 合成配方</h3><div id="craftList"></div></div>
+        <div class="crafts">
+          <h3>⚒ 合成台</h3>
+          <div id="craftArea">
+            <div id="craftGrid"></div>
+            <div class="carrow">➜</div>
+            <div id="craftResult" title="点击或拖出，成品进背包"></div>
+          </div>
+          <div id="craftHint">把背包物品拖进 3×3 格子</div>
+          <h3>📖 配方参考</h3>
+          <div id="craftList"></div>
+        </div>
       </div>
       <div class="hint">按 E 或 Esc 关闭 · 挖掘获得材料 · N 切换维度 · H 按键帮助</div>
     </div>
@@ -3813,10 +3842,12 @@
     overlay.style.display = 'none';
     inventoryEl.style.display = 'flex';
     refreshInventoryUI();
+    renderCraft();
     document.exitPointerLock();
   }
   function closeInventory() {
     inventoryOpen = false;
+    returnCraftItems();
     inventoryEl.style.display = 'none';
     requestLock();
   }
@@ -3849,7 +3880,7 @@
     if (inventoryOpen && (e.code === 'KeyE' || e.code === 'Escape')) {
       e.preventDefault();
       if (e.code === 'KeyE') closeInventory();
-      else { inventoryOpen = false; inventoryEl.style.display = 'none'; overlay.style.display = 'flex'; }
+      else { inventoryOpen = false; returnCraftItems(); inventoryEl.style.display = 'none'; overlay.style.display = 'flex'; }
       return;
     }
     if (!locked || dead) return;
@@ -4216,28 +4247,170 @@
       closeInventory();
       showToast(`已将「${defOf(id).name}」放入栏位 ${selected + 1}`);
     });
+    cell.addEventListener('mousedown', e => {   // 按住拖动 → 拖进合成格
+      if (e.button !== 0 || ARMOR[id]) return;
+      const n = invCount(id);
+      if (n > 0) startDragSrc(e, id, n, -1);
+    });
     invGrid.appendChild(cell);
     invCells.push({ id, cell, cnt });
   });
-  // 合成列表
-  const craftRows = [];
-  RECIPES.forEach((r, i) => {
+
+  /* ---- 拖拽合成台：把背包物品拖进 3×3，配比对上后点/拖成品进背包 ---- */
+  const craftCells = Array(9).fill(null);   // 每格 {id, n}
+  const craftGridEl = document.getElementById('craftGrid');
+  const craftResultEl = document.getElementById('craftResult');
+  const craftHintEl = document.getElementById('craftHint');
+  const cslotEls = [];
+  for (let i = 0; i < 9; i++) {
+    const el = document.createElement('div');
+    el.className = 'cslot';
+    el.dataset.cell = i;
+    el.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      const it = craftCells[i];
+      if (it) startDragSrc(e, it.id, it.n, i);
+    });
+    craftGridEl.appendChild(el);
+    cslotEls.push(el);
+  }
+  function matchCraft() {   // 格内材料的种类与数量正好等于某配方（无序）
+    const tot = {};
+    let kinds = 0;
+    craftCells.forEach(it => { if (it) { if (!(it.id in tot)) kinds++; tot[it.id] = (tot[it.id] || 0) + it.n; } });
+    if (!kinds) return null;
+    outer: for (const r of RECIPES) {
+      if (r.in.length !== kinds) continue;
+      for (const [id, n] of r.in) if ((tot[id] || 0) !== n) continue outer;
+      return r;
+    }
+    return null;
+  }
+  function renderCraft() {
+    cslotEls.forEach((el, i) => {
+      const it = craftCells[i];
+      el.innerHTML = '';
+      if (it) {
+        el.appendChild(makeIcon(it.id, 34));
+        if (it.n > 1) { const c = document.createElement('span'); c.className = 'cnt'; c.textContent = it.n; el.appendChild(c); }
+      }
+    });
+    craftResultEl.innerHTML = '';
+    const r = matchCraft();
+    if (r) {
+      craftResultEl.appendChild(makeIcon(r.out[0], 40));
+      if (r.out[1] > 1) { const c = document.createElement('span'); c.className = 'cnt'; c.textContent = r.out[1]; craftResultEl.appendChild(c); }
+      craftHintEl.textContent = `✅ 可合成：${r.out[1]}×${defOf(r.out[0]).name}`;
+    } else
+      craftHintEl.textContent = '把背包物品拖进 3×3 格子（材料的种类和数量要正好匹配配方）';
+  }
+  function craftConsume() {   // 扣掉格子里的材料
+    const r = matchCraft();
+    if (!r) return null;
+    for (const [id, n] of r.in) {
+      let need = n;
+      for (let i = 0; i < 9 && need > 0; i++) {
+        const it = craftCells[i];
+        if (it && it.id === id) {
+          const take = Math.min(need, it.n);
+          it.n -= take; need -= take;
+          if (it.n <= 0) craftCells[i] = null;
+        }
+      }
+    }
+    return r;
+  }
+  function takeCraftResult() {   // 点击成品：扣材料 + 成品进背包
+    const r = matchCraft();
+    if (!r) return;
+    craftConsume();
+    invAdd(r.out[0], r.out[1]);
+    sfx(660, .07, 'sine', .1); sfx(880, .07, 'sine', .08);
+    showToast(`合成成功：${defOf(r.out[0]).name} ×${r.out[1]}（已放入背包）`);
+    refreshInventoryUI(); renderCraft();
+  }
+  craftResultEl.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    const r = matchCraft();
+    if (r) startDragSrc(e, r.out[0], r.out[1], -2);   // -2 = 从成品槽拖出
+  });
+  craftResultEl.addEventListener('click', e => { e.stopPropagation(); takeCraftResult(); });
+  // 拖拽状态机：按下 → 移过 6px 才真正拿起（未移动视为普通点击）
+  let drag = null;
+  function startDragSrc(e, id, n, fromCell) {
+    drag = { id, n, fromCell, moved: false, sx: e.clientX, sy: e.clientY, ghost: null };
+  }
+  document.addEventListener('mousemove', e => {
+    if (!drag) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 6) {
+      drag.moved = true;
+      if (drag.fromCell === -2) craftConsume();                 // 拖出成品：先扣材料
+      else if (drag.fromCell >= 0) craftCells[drag.fromCell] = null;
+      else invAdd(drag.id, -drag.n);
+      const g = document.createElement('div');
+      g.id = 'dragGhost';
+      g.appendChild(makeIcon(drag.id, 38));
+      if (drag.n > 1) { const c = document.createElement('span'); c.className = 'cnt'; c.textContent = drag.n; g.appendChild(c); }
+      document.body.appendChild(g);
+      drag.ghost = g;
+      renderCraft(); refreshInventoryUI();
+    }
+    if (!drag.moved) return;
+    drag.ghost.style.left = e.clientX + 'px';
+    drag.ghost.style.top = e.clientY + 'px';
+    document.querySelectorAll('.cslot.over').forEach(el => el.classList.remove('over'));
+    const t = document.elementFromPoint(e.clientX, e.clientY);
+    if (t && t.classList.contains('cslot')) t.classList.add('over');
+  });
+  document.addEventListener('mouseup', e => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    document.querySelectorAll('.cslot.over').forEach(el => el.classList.remove('over'));
+    d.ghost?.remove();
+    if (!d.moved) {   // 原地松手 = 点击：合成格物品收回背包，背包点击交给 click 处理器
+      if (d.fromCell >= 0) {
+        invAdd(d.id, d.n);
+        craftCells[d.fromCell] = null;
+        renderCraft(); refreshInventoryUI();
+      }
+      return;
+    }
+    const t = document.elementFromPoint(e.clientX, e.clientY);
+    const cellEl = t?.closest?.('.cslot');
+    if (cellEl && d.fromCell !== -2) {   // 拖进合成格
+      const i = +cellEl.dataset.cell;
+      const cur = craftCells[i];
+      if (!cur) craftCells[i] = { id: d.id, n: d.n };
+      else if (cur.id === d.id) cur.n += d.n;
+      else { invAdd(cur.id, cur.n); craftCells[i] = { id: d.id, n: d.n }; }
+      blockSnd(d.id, 'place');
+    } else {   // 松手在别处（含成品拖出）→ 收进背包
+      invAdd(d.id, d.n);
+      if (d.fromCell === -2) showToast(`合成成功：${defOf(d.id).name} ×${d.n}（已放入背包）`);
+    }
+    renderCraft(); refreshInventoryUI();
+  });
+  function returnCraftItems() {   // 关背包时材料退回
+    for (let i = 0; i < 9; i++) if (craftCells[i]) {
+      invAdd(craftCells[i].id, craftCells[i].n);
+      craftCells[i] = null;
+    }
+    renderCraft();
+  }
+  // 配方参考（只读）
+  RECIPES.forEach(r => {
     const row = document.createElement('div');
     row.className = 'recipe';
     r.in.forEach(([id, n], j) => {
       if (j > 0) row.append(' + ');
-      row.appendChild(makeIcon(id, 26));
+      row.appendChild(makeIcon(id, 24));
       row.append(`${n}×${defOf(id).name}`);
     });
     const arrow = document.createElement('span'); arrow.className = 'arrow'; arrow.textContent = ' → ';
     row.appendChild(arrow);
-    row.appendChild(makeIcon(r.out[0], 26));
+    row.appendChild(makeIcon(r.out[0], 24));
     row.append(`${r.out[1]}×${defOf(r.out[0]).name}`);
-    const btn = document.createElement('button'); btn.textContent = '合成';
-    btn.addEventListener('click', e => { e.stopPropagation(); doCraft(i); });
-    row.appendChild(btn);
     craftList.appendChild(row);
-    craftRows.push({ r, btn });
   });
   function refreshInventoryUI() {
     let owned = 0;
@@ -4249,9 +4422,8 @@
       if (n > 0) owned++;
     });
     invSubEl.textContent = bagMode
-      ? (owned ? `${owned} 种物品 · 点击放入手持栏位` : '背包空空如也，去挖掘、打怪收集物品吧！')
-      : '图鉴：游戏内全部物品';
-    craftRows.forEach(({ r, btn }) => { btn.disabled = !canCraft(r); });
+      ? (owned ? `${owned} 种物品 · 点击放入手持栏位 · 按住拖到合成格` : '背包空空如也，去挖掘、打怪收集物品吧！')
+      : '图鉴：游戏内全部物品（点击放入手持栏位）';
   }
   // 装备栏 UI
   const equipSlotEls = {};
@@ -4521,6 +4693,10 @@
     hurt: (i, dmg) => mobHit(entitiesOf()[i], dmg, new THREE.Vector3(0, 0, 0)),
     cities: () => dims.overworld.cities || [], crystals: () => endCrystals.filter(p => getBlock(p[0], p[1], p[2]) === B.END_CRYSTAL).length,
     spawn: spawnMob,
+    craftState: () => ({ cells: craftCells.map(c => c ? [c.id, c.n] : null),
+      match: matchCraft() ? matchCraft().out : null }),
+    craftPut: (i, id, n) => { craftCells[i] = { id, n }; renderCraft(); },
+    craftTake: () => takeCraftResult(),
     set: (x, y, z, id) => { setBlockData(x, y, z, id); rebuildAt(x, z); },
     move: (ent, dt) => moveEntity(ent, dt),
     tickMobs: dt => updateMobs(dt),
