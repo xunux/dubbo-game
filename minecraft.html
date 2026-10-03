@@ -1157,13 +1157,15 @@
       for (let z = 0; z < def.sz; z++) {
         const h = Math.min(columnHeight(x, z), def.sy - 10);
         const beach = h <= def.sea + 1, cold = isCold(x, z);
+        // 每列分界高度加噪声抖动（±3 格），避免山体出现生硬的水平"草-石-雪"三明治条带
+        const jit = (noise2(x * .13 + 40, z * .17 + 9) - .5) * 6;
         for (let y = 0; y <= h; y++) {
           let id;
           if (y === 0) id = B.BEDROCK;
           else if (y === h) {
             if (beach) id = B.SAND;
-            else if (h >= 28) id = B.SNOW;
-            else if (h >= 25) id = B.STONE;
+            else if (h >= 28 + jit) id = B.SNOW;
+            else if (h >= 24.5 + jit) id = B.STONE;
             else if (cold) id = B.SNOW;
             else id = B.GRASS;
           } else if (y > h - 4) {
