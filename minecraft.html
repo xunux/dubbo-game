@@ -2441,25 +2441,74 @@
   scene.add(camera);
   const cubeGeoCache = new Map();
   const spriteMatCache = new Map();
-  // 工具/食物渲染为带厚度的立牌（正反面贴图，侧面木质）
-  function makeItemSprite(id, size) {
-    const t = defOf(id);
-    let mats = spriteMatCache.get(id);
-    if (!mats) {
-      const tex = atlasTex.clone();
-      tex.needsUpdate = true;
-      tex.repeat.set(1 / NTILES, 1);
-      tex.offset.set(t.tile / NTILES, 0);
-      const edge = new THREE.MeshBasicMaterial({ color: 0x6b4a2a });
-      const face = new THREE.MeshBasicMaterial({ map: tex });
-      const back = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color().setScalar(.75) });
-      mats = [edge, edge, edge, edge, face, back];
-      spriteMatCache.set(id, mats);
+
+  /* ---- 像素挤出 3D 道具：按贴图不透明像素行生成有厚度的实体（MC 手持风） ---- */
+  const itemExtrudeMat = new THREE.MeshBasicMaterial({ map: atlasTex, vertexColors: true, alphaTest: .5 });
+  const extrudeGeoCache = new Map(), tileAlphaCache = new Map();
+  function tileAlpha(tile) {
+    let a = tileAlphaCache.get(tile);
+    if (!a) {
+      a = actx.getImageData(tile * TILE, 0, TILE, TILE).data;
+      tileAlphaCache.set(tile, a);
     }
-    const gk = 'sprite' + id + '@' + size;
-    let geo = cubeGeoCache.get(gk);
-    if (!geo) { geo = new THREE.BoxGeometry(size, size, size * .12); cubeGeoCache.set(gk, geo); }
-    return new THREE.Mesh(geo, mats);
+    return a;
+  }
+  function getExtrudedGeo(id) {
+    let geo = extrudeGeoCache.get(id);
+    if (geo) return geo;
+    const t = defOf(id), tile = t.tile, data = tileAlpha(tile);
+    const opaque = (x, y) => data[(y * TILE + x) * 4 + 3] > 60;
+    const D = .22;   // 厚度
+    const p = [], u = [], c = [], idx = [];
+    const uvAt = (px, py) => [(tile * TILE + px) / (TILE * NTILES), 1 - py / TILE];
+    function quad(vs, uv, shade) {   // vs: 4 顶点 [x,y,z]×4（CCW 朝外）
+      const base = p.length / 3;
+      for (let k = 0; k < 4; k++) {
+        p.push(vs[k][0], vs[k][1], vs[k][2]);
+        u.push(uv[k][0], uv[k][1]);
+        c.push(shade, shade, shade);
+      }
+      idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+    for (let y = 0; y < TILE; y++) {
+      let x = 0;
+      while (x < TILE) {
+        if (!opaque(x, y)) { x++; continue; }
+        let x2 = x;
+        while (x2 < TILE && opaque(x2, y)) x2++;
+        // 该行的一段 [x, x2)：局部坐标（贴图上=北，挤出厚度沿 z）
+        const X0 = x / TILE - .5, X1 = x2 / TILE - .5;
+        const Y0 = .5 - (y + 1) / TILE, Y1 = .5 - y / TILE;
+        const midU = uvAt((x + x2) / 2, y + .5);   // 侧面采样该段中心像素的颜色
+        quad([[X0, Y1, D / 2], [X1, Y1, D / 2], [X1, Y0, D / 2], [X0, Y0, D / 2]],   // 正面
+          [uvAt(x, y), uvAt(x2, y), uvAt(x2, y + 1), uvAt(x, y + 1)], 1);
+        quad([[X1, Y1, -D / 2], [X0, Y1, -D / 2], [X0, Y0, -D / 2], [X1, Y0, -D / 2]],   // 背面
+          [midU, midU, midU, midU], .68);
+        quad([[X0, Y1, -D / 2], [X0, Y1, D / 2], [X0, Y0, D / 2], [X0, Y0, -D / 2]],   // 左
+          [midU, midU, midU, midU], .8);
+        quad([[X1, Y1, D / 2], [X1, Y1, -D / 2], [X1, Y0, -D / 2], [X1, Y0, D / 2]],   // 右
+          [midU, midU, midU, midU], .8);
+        quad([[X0, Y1, -D / 2], [X1, Y1, -D / 2], [X1, Y1, D / 2], [X0, Y1, D / 2]],   // 顶
+          [midU, midU, midU, midU], .9);
+        quad([[X0, Y0, D / 2], [X1, Y0, D / 2], [X1, Y0, -D / 2], [X0, Y0, -D / 2]],   // 底
+          [midU, midU, midU, midU], .55);
+        x = x2;
+      }
+    }
+    geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(u, 2));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    extrudeGeoCache.set(id, geo);
+    return geo;
+  }
+  // 工具/食物渲染为像素挤出的 3D 实体
+  function makeItemSprite(id, size) {
+    const mesh = new THREE.Mesh(getExtrudedGeo(id), itemExtrudeMat);
+    mesh.scale.setScalar(size);
+    return mesh;
   }
   function makeBlockCube(id, size) {
     if (!BLOCKS[id]) return makeItemSprite(id, size);   // 工具/食物走立牌
@@ -2494,9 +2543,10 @@
     if (heldMesh) { armGroup.remove(heldMesh); heldMesh = null; }   // 几何体全局缓存，不释放
     const id = HOTBAR[selected];
     if (!id) return;
-    heldMesh = makeBlockCube(id, .27);
-    heldMesh.position.set(.03, -.05, -.38);
-    heldMesh.rotation.set(.15, .45, .05);
+    const tool = !BLOCKS[id];
+    heldMesh = makeBlockCube(id, tool ? .46 : .27);
+    heldMesh.position.set(.04, -.02, -.42);
+    heldMesh.rotation.set(.1, tool ? .55 : .45, tool ? -.35 : .05);   // 工具斜握，剑尖朝外
     armGroup.add(heldMesh);
   }
   let viewMode = 0;   // 0 第一人称 1 第三人称
