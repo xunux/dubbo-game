@@ -1514,7 +1514,11 @@
             let vy = cr[1] ? by1 : by0;
             if (lower && vy === 1) vy = .875;
             T.p.push(x + (cr[0] ? bx1 : bx0), y + vy, z + (cr[2] ? bz1 : bz0));
-            T.u.push(k === 1 || k === 2 ? u1 : u0, .002 + vy * .996);   // v 随盒子高度取贴图对应区段
+            // 顶/底面的 v 必须随 z 变化（四个角高度相同，用高度当 v 会把整面压成一行像素）
+            const vc = f.dir[1] !== 0
+              ? (f.dir[1] > 0 ? 1 - (cr[2] ? bz1 : bz0) : (cr[2] ? bz1 : bz0))
+              : vy;
+            T.u.push(k === 1 || k === 2 ? u1 : u0, .002 + vc * .996);
             T.c.push(f.shade, f.shade, f.shade);
           }
           T.i.push(base, base + 1, base + 2, base, base + 2, base + 3);
