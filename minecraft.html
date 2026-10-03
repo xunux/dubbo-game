@@ -4274,6 +4274,29 @@
     craftGridEl.appendChild(el);
     cslotEls.push(el);
   }
+  function craftAdvice() {   // 未匹配时给出"还差/多了什么"的提示
+    const tot = {};
+    let kinds = 0;
+    craftCells.forEach(it => { if (it) { if (!(it.id in tot)) kinds++; tot[it.id] = (tot[it.id] || 0) + it.n; } });
+    if (!kinds) return '把背包物品拖进 3×3 格子（材料的种类和数量要正好匹配配方）';
+    // 找"格子材料都在其配方里"的候选中差额最小的一个
+    let best = null;
+    for (const rec of RECIPES) {
+      let sub = true;
+      for (const id in tot) if (!rec.in.some(([id2]) => id2 === +id)) { sub = false; break; }
+      if (!sub) continue;
+      let sf = 0;
+      const diff = [];
+      for (const [id, n] of rec.in) {
+        const have = tot[id] || 0;
+        if (have < n) { sf += n - have; diff.push(`还差 ${n - have}×${defOf(id).name}`); }
+        else if (have > n) { sf += have - n; diff.push(`多了 ${have - n}×${defOf(id).name}`); }
+      }
+      if (diff.length && (!best || sf < best.sf)) best = { sf, diff, rec };
+    }
+    if (best) return `${best.diff.join('，')} → ${defOf(best.rec.out[0]).name}`;
+    return '这些材料没有对应的配方，看下方配方参考';
+  }
   function matchCraft() {   // 格内材料的种类与数量正好等于某配方（无序）
     const tot = {};
     let kinds = 0;
@@ -4302,7 +4325,7 @@
       if (r.out[1] > 1) { const c = document.createElement('span'); c.className = 'cnt'; c.textContent = r.out[1]; craftResultEl.appendChild(c); }
       craftHintEl.textContent = `✅ 可合成：${r.out[1]}×${defOf(r.out[0]).name}`;
     } else
-      craftHintEl.textContent = '把背包物品拖进 3×3 格子（材料的种类和数量要正好匹配配方）';
+      craftHintEl.textContent = craftAdvice();
   }
   function craftConsume() {   // 扣掉格子里的材料
     const r = matchCraft();
