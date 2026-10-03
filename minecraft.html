@@ -501,7 +501,7 @@
 
   // 维度定义
   const DIM_DEFS = {
-    overworld: { label:'主世界', icon:'🌍', sx:256, sz:256, sy:48, sky:0x87ceeb, fog:[70,190], sea:12, clouds:true },
+    overworld: { label:'主世界', icon:'🌍', sx:256, sz:256, sy:48, sky:0x87ceeb, fog:[95,235], sea:12, clouds:true },
     nether:    { label:'下界',   icon:'🔥', sx:160, sz:160, sy:48, sky:0x2a0b0b, fog:[14,75],  sea:9,  clouds:false },
     end:       { label:'末地',   icon:'🌌', sx:128, sz:128, sy:48, sky:0x0d0a1a, fog:[55,160], sea:-1, clouds:false },
   };
@@ -575,14 +575,14 @@
   const DIRT_C = ['#79522f', '#845a35', '#8f623a', '#6f4a2a'];
   const STONE_C = ['#7e7e7e', '#8a8a8a', '#949494', '#767676'];
 
-  // 0 草顶：草地 + 短草叶 + 深浅斑块
-  clump(0, ['#4a8534', '#54923c', '#5da244', '#68b04c'], 5.5, 0);
+  // 0 草顶：草地 + 短草叶 + 深浅斑块（明亮草绿，MC 风格）
+  clump(0, ['#68bd46', '#73c850', '#7fd35b', '#8ade64'], 5.5, 0);
   for (let i = 0; i < 46; i++) {
     const x = (texRng() * 31) | 0, y = (texRng() * 30) | 0;
-    px(0, x, y, texRng() < .5 ? '#79c258' : '#3c7329');
-    if (texRng() < .5) px(0, Math.min(31, x + 1), y, '#6db050');
+    px(0, x, y, texRng() < .5 ? '#9ce873' : '#4f9a33');
+    if (texRng() < .5) px(0, Math.min(31, x + 1), y, '#8cd961');
   }
-  speckle(0, '#76bf55', .03);
+  speckle(0, '#93e267', .03);
   // 2 泥土：土块 + 小石子 + 须根
   clump(2, DIRT_C, 4.5, 2);
   for (let i = 0; i < 14; i++) {
@@ -599,13 +599,13 @@
   for (let x = 0; x < TILE; x++) {
     const hh = 5 + ((noise2(x * .35 + 3.3, 9.1) * 6) | 0);
     for (let y = 0; y < hh; y++)
-      px(1, x, y, y === hh - 1 ? '#3e6e2a' : ['#4a8534', '#54923c', '#5da244'][(texRng() * 3) | 0]);
+      px(1, x, y, y === hh - 1 ? '#528f3a' : ['#5fb844', '#6cc34f', '#79ce5a'][(texRng() * 3) | 0]);
   }
   for (let i = 0; i < 7; i++) {
     const x = (texRng() * 31) | 0, h2 = 6 + ((noise2(x * .35 + 3.3, 9.1) * 6) | 0);
-    for (let y = h2; y < Math.min(31, h2 + 2 + ((texRng() * 3) | 0)); y++) px(1, x, y, '#4c8a34');
+    for (let y = h2; y < Math.min(31, h2 + 2 + ((texRng() * 3) | 0)); y++) px(1, x, y, '#67c04a');
   }
-  rect(1, 0, 0, TILE, 1, '#71b84e');
+  rect(1, 0, 0, TILE, 1, '#8bd961');
   // 3 石头：多层裂纹 + 明暗碎屑
   clump(3, STONE_C, 6, 3);
   for (let i = 0; i < 4; i++) {
