@@ -2544,9 +2544,9 @@
     const id = HOTBAR[selected];
     if (!id) return;
     const tool = !BLOCKS[id];
-    heldMesh = makeBlockCube(id, tool ? .46 : .27);
-    heldMesh.position.set(.04, -.02, -.42);
-    heldMesh.rotation.set(.1, tool ? .55 : .45, tool ? -.35 : .05);   // 工具斜握，剑尖朝外
+    heldMesh = makeBlockCube(id, tool ? .72 : .27);
+    heldMesh.position.set(.05, .04, -.5);
+    heldMesh.rotation.set(.08, tool ? .62 : .45, tool ? -.32 : .05);   // 工具斜握，剑尖朝外
     armGroup.add(heldMesh);
   }
   let viewMode = 0;   // 0 第一人称 1 第三人称
