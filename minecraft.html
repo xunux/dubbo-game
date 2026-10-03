@@ -79,6 +79,12 @@
   #keyHint { position: fixed; left: 12px; bottom: 14px; color: #fff; font-size: 12px;
     text-shadow: 1px 1px 2px #000, 0 0 6px rgba(0,0,0,.8); z-index: 10;
     opacity: .9; pointer-events: none; }
+  #bossBar { position: fixed; left: 50%; top: 14px; transform: translateX(-50%); width: 420px;
+    display: none; text-align: center; z-index: 12; pointer-events: none; }
+  #bossBar span { color: #e8c8ff; font-size: 14px; text-shadow: 0 0 6px #502080, 1px 1px 2px #000; }
+  #bossBar .bar { height: 10px; margin-top: 3px; background: rgba(0,0,0,.55);
+    border: 2px solid rgba(200,160,255,.55); border-radius: 5px; overflow: hidden; }
+  #bossFill { height: 100%; width: 100%; background: linear-gradient(90deg, #b038d8, #e868ff); }
 
   #liquidOverlay { position: fixed; inset: 0; display: none; pointer-events: none; z-index: 5; }
   #hurtOverlay { position: fixed; inset: 0; pointer-events: none; z-index: 6;
@@ -165,6 +171,10 @@
   <div id="debug"></div>
   <div id="dimTag"></div>
   <div id="keyHint">⌨ H 按键帮助</div>
+  <div id="bossBar">
+    <span id="bossName">🐉 末影龙</span>
+    <div class="bar"><div id="bossFill"></div></div>
+  </div>
   <div id="hotbar"></div>
 
   <div id="loading">
@@ -232,7 +242,7 @@
     <div class="panel">
       <canvas id="coverCanvas" width="520" height="132"></canvas>
       <h1>🧱 Mini<span>Craft</span> 迷你我的世界</h1>
-      <div class="sub">三大维度 · 9 种生物 · 合成 · 68 种方块（台阶/楼梯/栅栏/彩色羊毛） · 生命值 · 建筑生成</div>
+      <div class="sub">三大维度 · 12 种生物（末影龙/坚守者/远古城市） · 合成 · 69 种方块 · 昼夜循环 · 生命值 · 建筑生成</div>
       <table>
         <tr><td class="k">鼠标</td><td>视角</td><td class="k">左键</td><td>挖掘 / 攻击生物</td></tr>
         <tr><td class="k">右键</td><td>放置方块</td><td class="k">中键</td><td>吸取方块</td></tr>
@@ -295,7 +305,7 @@
     WOOL_ORANGE:52, WOOL_MAGENTA:53, WOOL_LBLUE:54, WOOL_YELLOW:55, WOOL_LIME:56,
     WOOL_PINK:57, WOOL_GRAY:58, WOOL_LGRAY:59, WOOL_CYAN:60, WOOL_PURPLE:61,
     WOOL_BLUE:62, WOOL_BROWN:63, WOOL_GREEN:64, WOOL_RED:65, WOOL_BLACK:66,
-    LAPIS_ORE:67, EMERALD_ORE:68 };
+    LAPIS_ORE:67, EMERALD_ORE:68, END_CRYSTAL:69 };
 
   // 形状方块的几何：boxes = [x0,x1, y0,y1, z0,z1]（局部 0~1），渲染与碰撞共用
   const SHAPE = {
@@ -372,6 +382,7 @@
     name, tiles:[71 + i, 71 + i, 71 + i], solid:true, opaque:true });
   BLOCKS[B.LAPIS_ORE]   = { name:'青金石矿石', tiles:[86,86,86], solid:true, opaque:true };
   BLOCKS[B.EMERALD_ORE] = { name:'绿宝石矿石', tiles:[87,87,87], solid:true, opaque:true };
+  BLOCKS[B.END_CRYSTAL] = { name:'末地水晶', tiles:[90,90,90], solid:true, opaque:false, crystal:true };   // 末影龙的回血源，破坏会爆炸
 
   const ITEMS = [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.MOSSY_COBBLE, B.STONE_BRICK, B.SAND,
     B.SANDSTONE, B.LOG, B.PLANK, B.LEAVES, B.GLASS, B.BRICK, B.SNOW, B.ICE, B.OBSIDIAN,
@@ -437,7 +448,7 @@
     [B.LOG]: .6, [B.PLANK]: .6, [B.CRAFT_TABLE]: .6, [B.BOOKSHELF]: .5, [B.NOTE]: .6,
     [B.SLAB_OAK]: .6, [B.SLAB_COBBLE]: .9, [B.SLAB_STONEBRICK]: .95, [B.SLAB_BRICK]: .95,
     [B.STAIR_OAK]: .6, [B.STAIR_COBBLE]: .9, [B.STAIR_STONEBRICK]: .95, [B.STAIR_BRICK]: .95,
-    [B.FENCE_OAK]: .6, [B.FENCE_NETHER]: .95, [B.LAPIS_ORE]: 1.3, [B.EMERALD_ORE]: 1.5,
+    [B.FENCE_OAK]: .6, [B.FENCE_NETHER]: .95, [B.LAPIS_ORE]: 1.3, [B.EMERALD_ORE]: 1.5, [B.END_CRYSTAL]: .3,
     [B.LEAVES]: .15, [B.GLASS]: .2, [B.ICE]: .3, [B.SNOW]: .2, [B.WOOL]: .3,
     [B.COAL_ORE]: 1.1, [B.IRON_ORE]: 1.3, [B.GOLD_ORE]: 1.3, [B.DIAMOND_ORE]: 1.5,
     [B.QUARTZ_ORE]: 1.1, [B.NETHERRACK]: .4, [B.SOUL_SAND]: .4, [B.NETHER_BRICK]: .95,
@@ -510,6 +521,7 @@
     dims[k] = { def: d, data: null, generated: false, spawn: new THREE.Vector3(), entities: [] };
   let cur = 'overworld';
   const D = () => dims[cur];
+  const endCrystals = [];   // 末地水晶位置（末影龙回血源）
 
   /* ============================================================
    * 2. 随机数与噪声
@@ -1077,6 +1089,18 @@
   rect(89, 14, 18, 4, 9, '#ece4d4');
   px(89, 13, 17, '#d8ccb8'); px(89, 18, 17, '#d8ccb8'); px(89, 15, 26, '#c8bca8');
 
+  // 90 末地水晶：暗紫基座 + 紫粉晶簇（破坏会爆炸，为末影龙回血）
+  clump(90, ['#241c30', '#2e2440', '#1c1628'], 4, 90);
+  rect(90, 5, 23, 22, 7, '#141020');
+  rect(90, 8, 21, 16, 2, '#3a2c50');
+  rect(90, 13, 9, 6, 13, '#d87ce0');      // 主晶
+  rect(90, 15, 4, 3, 8, '#f4c0f8');
+  rect(90, 8, 13, 4, 9, '#b858c0');       // 左晶
+  rect(90, 9, 9, 2, 5, '#e8a0e8');
+  rect(90, 20, 13, 4, 11, '#b858c0');     // 右晶
+  rect(90, 21, 8, 2, 6, '#e8a0e8');
+  px(90, 14, 11, '#ffffff'); px(90, 15, 13, '#fce8ff');
+
   const tileAvgColor = [];
   for (let ti = 0; ti < NTILES; ti++) {
     const d = actx.getImageData(ti * TILE, 0, TILE, TILE).data;
@@ -1228,6 +1252,49 @@
       }
     }
     d.spawnPigSheep = { pig: 7, sheep: 7, cow: 5, chicken: 6, zombie: 6, mouse: 6, creeper: 3 };
+    // 远古城市：地下 3 座黑石大厅（紫珀祭坛 + 战利品矿石），由坚守者看守
+    d.cities = [];
+    const cityRng = mulberry32(seed ^ 0xa11c17);
+    for (let ci = 0, tries = 0; ci < 3 && tries < 60; tries++) {
+      const W = 22, Dp = 22, H = 9, Y0 = 6;
+      const bx = 20 + ((cityRng() * (def.sx - W - 44)) | 0), bz = 20 + ((cityRng() * (def.sz - Dp - 44)) | 0);
+      if (Math.hypot(bx + W / 2 - def.sx / 2, bz + Dp / 2 - def.sz / 2) < 40) continue;   // 别压着出生点
+      ci++;
+      // 外壳（黑石）+ 内部掏空
+      for (let x = bx - 1; x <= bx + W; x++) for (let z = bz - 1; z <= bz + Dp; z++) for (let y = Y0 - 1; y <= Y0 + H; y++) {
+        const shell = x === bx - 1 || x === bx + W || z === bz - 1 || z === bz + Dp || y === Y0 - 1 || y === Y0 + H;
+        setBlockData(x, y, z, shell ? B.BLACKSTONE : B.AIR);
+      }
+      // 四角与中央立柱
+      for (const [px2, pz2] of [[2, 2], [W - 3, 2], [2, Dp - 3], [W - 3, Dp - 3], [W >> 1, 1], [W >> 1, Dp - 2]])
+        for (let y = Y0; y < Y0 + H - 1; y++) setBlockData(bx + px2, y, bz + pz2, B.BLACKSTONE);
+      // 中央紫珀祭坛 + 灵魂灯
+      const ax = bx + (W >> 1), az = bz + (Dp >> 1);
+      for (let dx2 = -1; dx2 <= 1; dx2++) for (let dz2 = -1; dz2 <= 1; dz2++)
+        setBlockData(ax + dx2, Y0, az + dz2, B.PURPUR);
+      setBlockData(ax, Y0 + 1, az, B.SOUL_SAND);
+      setBlockData(ax, Y0 + 2, az, B.GLOWSTONE);
+      for (const [lx, lz] of [[3, Dp >> 1], [W - 4, Dp >> 1]]) setBlockData(bx + lx, Y0 + H - 1, bz + lz, B.GLOWSTONE);
+      // 墙内战利品矿石
+      for (let i = 0; i < 7; i++) {
+        const wx = bx + ((cityRng() * W) | 0), wz = bz + ((cityRng() * Dp) | 0);
+        const wy = cityRng() < .5 ? Y0 - 1 : Y0 + H;
+        setBlockData(wx, wy, wz, cityRng() < .6 ? B.DIAMOND_ORE : B.EMERALD_ORE);
+      }
+      // 地表入口：黑石遗迹环 + 直下竖井
+      const mx = ax, mz = az + 3;
+      let gy2 = 0;
+      for (let y = def.sy - 2; y > 1; y--) if (getBlock(mx, y, mz)) { gy2 = y; break; }
+      for (let dx2 = -2; dx2 <= 2; dx2++) for (let dz2 = -2; dz2 <= 2; dz2++) {
+        const ring = Math.max(Math.abs(dx2), Math.abs(dz2)) === 2;
+        if (ring && cityRng() < .75) setBlockData(mx + dx2, gy2 + 1, mz + dz2, B.BLACKSTONE);
+        setBlockData(mx + dx2, gy2, mz + dz2, B.BLACKSTONE);
+      }
+      setBlockData(mx, gy2 + 1, mz, B.GLOWSTONE);   // 灯标
+      for (let y = Y0 + H; y <= gy2; y++) for (let dx2 = 0; dx2 <= 1; dx2++) for (let dz2 = 0; dz2 <= 1; dz2++)
+        setBlockData(mx + dx2, y, mz + dz2, B.AIR);   // 2×2 直下竖井
+      d.cities.push([bx + W / 2, Y0 + 1, bz + Dp / 2]);
+    }
   }
 
   function tryHut(x0, z0, r) {
@@ -1396,14 +1463,17 @@
           setBlockData(x, y, z, y === top && hash3(x, 0, z) < .04 ? B.PURPUR : B.END_STONE);
       }
     }
-    // 黑曜石尖柱 + 顶部荧石
+    // 黑曜石尖柱 + 顶部的末地水晶（为末影龙回血，破坏会爆炸）
+    endCrystals.length = 0;
     for (let i = 0; i < 7; i++) {
       const ang = i / 7 * Math.PI * 2, rr = 12 + (i % 3) * 6;
       const x = (cx + Math.cos(ang) * rr) | 0, z = (cz + Math.sin(ang) * rr) | 0;
       const h = 6 + ((hash3(x, 1, z) * 6) | 0);
       const gy = topSolidY(x, z);
       for (let y = gy + 1; y <= gy + h; y++) setBlockData(x, y, z, B.OBSIDIAN);
-      setBlockData(x, gy + h + 1, z, B.GLOWSTONE);
+      setBlockData(x, gy + h + 1, z, B.BEDROCK);
+      setBlockData(x, gy + h + 2, z, B.END_CRYSTAL);
+      endCrystals.push([x, gy + h + 2, z]);
     }
     // 紫珀祭坛平台
     for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++)
@@ -1416,7 +1486,7 @@
       for (let y = 25; y < 30; y++) setBlockData(sx + dx, y, sz + dz, B.AIR);
     }
     d.spawn.set(sx + .5, 25 + EPS, sz + .5);
-    d.spawnPigSheep = { enderman: 6 };
+    d.spawnPigSheep = { enderman: 6, dragon: 1 };
   }
 
   /* ============================================================
@@ -1782,6 +1852,20 @@
       for (let i = 0; i < 40; i++) p((trng() * 16) | 0, (trng() * 16) | 0, 1, 1,
         trng() < .35 ? '#5ec04c' : trng() < .5 ? '#3c9032' : '#46a03a');
     }),
+    wardenSkin: speckleTex('#233640', ['#1a2c34', '#2c4450', '#15222a'], .2),
+    wardenGlow: tex16(p => {
+      p(0, 0, 16, 16, '#2fe8d0');
+      for (let i = 0; i < 8; i++) p((trng() * 14) | 0, (trng() * 14) | 0, 2, 1, '#a8fff0');
+      p(0, 0, 16, 1, '#0e9a8a'); p(0, 15, 16, 1, '#0e9a8a');
+    }),
+    dragonSkin: speckleTex('#1c1428', ['#251a34', '#150f1e', '#302244'], .16),
+    dragonWing: tex16(p => {
+      p(0, 0, 16, 16, '#201830');
+      p(0, 0, 16, 2, '#3a2c54');                       // 翼骨
+      for (let i = 0; i < 5; i++) p(i * 3 + 1, 2, 1, 14, '#2c2242');   // 翼脉
+      p(0, 15, 16, 1, '#3a2c54');
+    }),
+    batSkin: speckleTex('#3a2c22', ['#463628', '#2e221a'], .16),
     zombieSkin: speckleTex('#5a9e4a', ['#4c8a3e', '#66aa56', '#528e44'], .12),
     zombieShirt: tex16(p => {
       p(0, 0, 16, 16, '#3a7a8a');
@@ -1880,6 +1964,24 @@
         trng() < .5 ? '#5ec04c' : '#3c9032');
       p(3, 4, 4, 4, '#101810'); p(9, 4, 4, 4, '#101810');     // 眼
       p(6, 8, 4, 6, '#101810'); p(4, 10, 2, 4, '#101810'); p(10, 10, 2, 4, '#101810');   // 嘴
+    }),
+    warden: tex16(p => {
+      p(0, 0, 16, 16, '#1e3138');
+      for (let y = 3; y < 15; y += 3) p(1, y, 14, 1, '#16262c');   // 皱脊（无眼）
+      p(0, 0, 2, 5, '#2fe8d0'); p(14, 0, 2, 5, '#2fe8d0');         // 灵魂耳光
+      p(5, 12, 6, 3, '#101c20');                                    // 隐约大口
+    }),
+    dragon: tex16(p => {
+      p(0, 0, 16, 16, '#150e20');
+      p(2, 5, 4, 3, '#d06ef8'); p(10, 5, 4, 3, '#d06ef8');         // 紫瞳
+      px(3, 6, '#ffffff'); px(11, 6, '#ffffff');
+      p(4, 10, 8, 2, '#0c0714');                                    // 嘴缝
+      for (let i = 0; i < 4; i++) p(4 + i * 2, 12, 1, 2, '#e8e0f0');   // 獠牙
+    }),
+    bat: tex16(p => {
+      p(0, 0, 16, 16, '#3a2c22');
+      p(4, 6, 2, 2, '#f0e8d8'); p(10, 6, 2, 2, '#f0e8d8');         // 眼
+      px(7, 11, '#e8e0d0'); px(8, 11, '#e8e0d0'); px(7, 12, '#c8b8a8');   // 獠牙
     }),
     zombie: tex16(p => {
       p(0, 0, 16, 16, '#5a9e4a');
@@ -2059,6 +2161,97 @@
     addShadow(g, .4);
     return { group: g, head, legs, arms: [], tail: null };
   }
+  // 坚守者：弓背人形 + 灵魂发光胸腔 + 长臂（无眼，靠听觉）
+  function buildWarden() {
+    const g = new THREE.Group();
+    const body = texturedPart(.85, .95, .55, TEX.wardenSkin);
+    body.position.y = 1.35; g.add(body);
+    const glow = texturedPart(.5, .4, .08, TEX.wardenGlow);
+    glow.position.set(0, 1.45, .3); g.add(glow);          // 胸口灵魂光
+    const head = texturedPart(.6, .5, .55, TEX.wardenSkin, MOB_FACES.warden);
+    head.position.set(0, 2.05, .1); g.add(head);
+    for (const s of [-1, 1]) {                             // 灵魂耳
+      const ear = texturedPart(.08, .45, .2, TEX.wardenGlow);
+      ear.position.set(s * .34, 2.25, 0); g.add(ear);
+    }
+    const legs = [], arms = [];
+    for (const s of [-1, 1]) {
+      const leg = texturedPart(.34, .95, .34, TEX.wardenSkin);
+      const lp = new THREE.Group();
+      lp.position.set(s * .22, .95, 0); leg.position.y = -.48;
+      lp.add(leg); g.add(lp); legs.push(lp);
+      const arm = texturedPart(.3, 1.25, .3, TEX.wardenSkin);   // 垂地长臂
+      const ap = new THREE.Group();
+      ap.position.set(s * .58, 1.75, 0); arm.position.y = -.62;
+      ap.add(arm); g.add(ap); arms.push(ap);
+    }
+    addShadow(g, .6);
+    return { group: g, head, legs, arms, tail: null };
+  }
+  // 末影龙：长身 + 曲颈 + 巨翼 + 分节尾
+  function buildDragon() {
+    const g = new THREE.Group();
+    const body = texturedPart(1.3, 1.1, 3.0, TEX.dragonSkin);
+    body.position.y = 1.1; g.add(body);
+    const neck = [];
+    for (let i = 0; i < 3; i++) {
+      const seg = texturedPart(.6 - i * .06, .55 - i * .05, .8, TEX.dragonSkin);
+      seg.position.set(0, 1.7 + i * .45, 1.7 + i * .72);
+      seg.rotation.x = -.5; g.add(seg); neck.push(seg);
+    }
+    const head = texturedPart(.85, .6, 1.1, TEX.dragonSkin, MOB_FACES.dragon);
+    head.position.set(0, 3.15, 4.15); g.add(head);
+    for (const s of [-1, 1]) {                             // 双角
+      const horn = texturedPart(.12, .5, .12, TEX.dragonSkin);
+      horn.position.set(s * .3, 3.6, 3.9); horn.rotation.x = -.5;
+      g.add(horn);
+    }
+    const wings = [];
+    for (const s of [-1, 1]) {
+      const pivot = new THREE.Group();
+      pivot.position.set(s * .6, 1.8, .4);
+      const wing = texturedPart(3.4, .12, 1.6, TEX.dragonWing);
+      wing.position.set(s * 1.7, 0, -.2);
+      pivot.add(wing); g.add(pivot); wings.push(pivot);
+    }
+    const tail = [];
+    let tz = -1.5;
+    for (let i = 0; i < 4; i++) {
+      const seg = texturedPart(.55 - i * .12, .45 - i * .1, .95, TEX.dragonSkin);
+      seg.position.set(0, 1.15, tz); tz -= .9;
+      g.add(seg); tail.push(seg);
+    }
+    const legs = [];
+    for (const [lx, lz] of [[-.45, 1], [.45, 1], [-.45, -1], [.45, -1]]) {
+      const leg = texturedPart(.35, .7, .35, TEX.dragonSkin);
+      const lp = new THREE.Group();
+      lp.position.set(lx, .7, lz); leg.position.y = -.35;
+      lp.add(leg); g.add(lp); legs.push(lp);
+    }
+    addShadow(g, 1.4);
+    return { group: g, head, legs, arms: [], tail: null, wings, neck, tailSegs: tail };
+  }
+  // 蝙蝠：迷你身体 + 扑翼
+  function buildBat() {
+    const g = new THREE.Group();
+    const body = texturedPart(.22, .22, .3, TEX.batSkin);
+    body.position.y = .1; g.add(body);
+    const head = texturedPart(.16, .16, .16, TEX.batSkin, MOB_FACES.bat);
+    head.position.set(0, .16, .17); g.add(head);
+    for (const s of [-1, 1]) {
+      const ear = texturedPart(.05, .1, .02, TEX.batSkin);
+      ear.position.set(s * .06, .28, .15); g.add(ear);
+    }
+    const wings = [];
+    for (const s of [-1, 1]) {
+      const pivot = new THREE.Group();
+      pivot.position.set(s * .11, .12, 0);
+      const wing = texturedPart(.4, .03, .26, TEX.batSkin);
+      wing.position.set(s * .2, 0, 0);
+      pivot.add(wing); g.add(pivot); wings.push(pivot);
+    }
+    return { group: g, head, legs: [], arms: [], tail: null, wings };
+  }
   // 小老鼠：小巧四足 + 圆耳朵 + 粉鼻 + 长尾巴
   function buildMouse() {
     const g = new THREE.Group();
@@ -2097,6 +2290,12 @@
     chicken:  { hp: 2, speed: 1.2, chaseSpeed: 0,   hostile: false, halfW: .2, height: .7, build: buildChicken },
     creeper:  { hp: 5, speed: 1.0, chaseSpeed: 2.0, hostile: true,  halfW: .3, height: 1.7, explode: true,
                 build: buildCreeper },
+    warden:   { hp: 30, speed: .8, chaseSpeed: 1.9, hostile: true, halfW: .45, height: 2.5, dmg: 6,
+                kbr: .12, heartbeat: true, noRespawn: false, build: buildWarden },
+    dragon:   { hp: 120, speed: 5, hostile: true, halfW: 1.4, height: 1.8, fly: true, dmg: 6,
+                noRespawn: true, build: buildDragon },
+    bat:      { hp: 3, speed: 2.4, chaseSpeed: 0, hostile: false, halfW: .15, height: .3, fly: true,
+                build: buildBat },
     zombie:   { hp: 5, speed: 1.0, chaseSpeed: 2.3, hostile: true,  halfW: .3, height: 1.9, dmg: 3,
                 build: () => buildHumanoid(TEX.zombieSkin, TEX.zombieShirt, TEX.zombiePants, MOB_FACES.zombie, TEX.zombieSkin) },
     pigman:   { hp: 6, speed: 1.0, chaseSpeed: 2.4, hostile: true,  halfW: .3, height: 1.9, dmg: 3,
@@ -2340,16 +2539,30 @@
    * 10. 生物实体
    * ============================================================ */
   const entitiesOf = () => dims[cur].entities;
-  function spawnMob(type, x, z) {
+  // 三维转向（飞行生物用）：朝目标点平滑加速
+  function steer3D(e, tx, ty, tz, sp, dt) {
+    const d = new THREE.Vector3(tx - e.pos.x, ty - e.pos.y, tz - e.pos.z);
+    const len = d.length() || 1;
+    const k = Math.min(1, dt * 2);
+    e.vel.x += (d.x / len * sp - e.vel.x) * k;
+    e.vel.y += (d.y / len * sp - e.vel.y) * k;
+    e.vel.z += (d.z / len * sp - e.vel.z) * k;
+  }
+  function spawnMob(type, x, z, y) {
     const def = MOB_DEFS[type];
-    const gy = topSolidY(Math.floor(x), Math.floor(z));
-    if (gy < 0) return null;
-    const above = getBlock(Math.floor(x), gy + 1, Math.floor(z));
-    if (above !== B.AIR && !BLOCKS[above].liquid) return null;
+    let sy;
+    if (y !== undefined) sy = y + EPS;   // 指定高度（飞行生物/地下生物）
+    else {
+      const gy = topSolidY(Math.floor(x), Math.floor(z));
+      if (gy < 0) return null;
+      const above = getBlock(Math.floor(x), gy + 1, Math.floor(z));
+      if (above !== B.AIR && !BLOCKS[above].liquid) return null;
+      sy = gy + 1 + EPS;
+    }
     const model = def.build();
     const e = {
       type, def, hp: def.hp, hostile: def.hostile,
-      pos: new THREE.Vector3(x, gy + 1 + EPS, z), vel: new THREE.Vector3(),
+      pos: new THREE.Vector3(x, sy, z), vel: new THREE.Vector3(),
       yaw: rng() * Math.PI * 2, targetYaw: 0, changeT: 0, walkT: 0,
       halfW: def.halfW, height: def.height, onGround: false,
       attackCd: 0, hurtCd: 0, ...model,
@@ -2365,17 +2578,30 @@
     const targets = d.spawnPigSheep || {};
     for (const [type, n] of Object.entries(targets)) {
       let placed = 0;
+      if (type === 'dragon') {   // 末影龙：中央祭坛上空盘旋
+        if (spawnMob('dragon', d.def.sx / 2 + .5, d.def.sz / 2 + .5, 34)) placed = 1;
+        continue;
+      }
       for (let t = 0; t < n * 30 && placed < n; t++) {
         const x = rng() * d.def.sx, z = rng() * d.def.sz;
         if (Math.hypot(x - player.pos.x, z - player.pos.z) < 12) continue;
         if (spawnMob(type, x, z)) placed++;
       }
     }
+    // 远古城市：坚守者 + 蝙蝠
+    if (cur === 'overworld' && d.cities) for (const [cx2, cy2, cz2] of d.cities) {
+      spawnMob('warden', cx2 - 3, cz2, cy2 + 1);
+      if (rng() < .6) spawnMob('warden', cx2 + 4, cz2 + 2, cy2 + 1);
+      for (let b = 0; b < 3; b++)
+        spawnMob('bat', cx2 + (rng() * 10 - 5), cz2 + (rng() * 10 - 5), cy2 + 2 + rng() * 3);
+    }
   }
   function mobHit(e, dmg, knockDir) {
     e.hp -= dmg;
     e.hurtCd = .35;
-    e.vel.x += knockDir.x * 6; e.vel.z += knockDir.z * 6; e.vel.y = Math.max(e.vel.y, 4.5);
+    const kb = e.def.kbr ?? 1;   // 坚守者等重甲生物几乎不被击退
+    e.vel.x += knockDir.x * 6 * kb; e.vel.z += knockDir.z * 6 * kb;
+    e.vel.y = Math.max(e.vel.y, e.def.fly ? 0 : 4.5 * kb);
     burst(e.pos.x, e.pos.y + e.height * .6, e.pos.z, {
       colors: ['#e05050', '#ffffff'], count: 8, spread: 3, life: .4 });
     hitSnd();
@@ -2402,7 +2628,9 @@
     sfx(120, .25, 'sawtooth', .15);
     // 掉落物：羊→羊毛，猪→猪排，僵尸→腐肉
     const dropTable = { sheep: [[B.WOOL, 1, 2]], pig: [[101, 1, 2]], cow: [[103, 1, 2]],
-      chicken: [[104, 1, 1]], zombie: [[102, 0, 1]] };
+      chicken: [[104, 1, 1]], zombie: [[102, 0, 1]],
+      warden: [[B.EMERALD_ORE, 1, 2]],
+      dragon: [[B.DIAMOND_ORE, 6, 12], [B.EMERALD_ORE, 3, 6], [B.TNT, 1, 2]] };
     const table = dropTable[e.type];
     if (table) for (const [id, lo, hi] of table) {
       const n = lo + Math.floor(Math.random() * (hi - lo + 1));
@@ -2412,7 +2640,11 @@
     const list = entitiesOf();
     const i = list.indexOf(e);
     if (i >= 0) list.splice(i, 1);
-    respawnQueue.push({ type: e.type, t: 8 + Math.random() * 8, dim: cur });
+    if (e.type === 'dragon') {
+      showToast('🏆 你击败了末影龙！战利品掉落中…');
+      sfx(200, .8, 'sawtooth', .2); sfx(90, 1, 'square', .15);
+    }
+    if (!e.def.noRespawn) respawnQueue.push({ type: e.type, t: 8 + Math.random() * 8, dim: cur });
   }
   const respawnQueue = [];
   function updateMobs(dt) {
@@ -2422,10 +2654,68 @@
       e.hurtCd = Math.max(0, e.hurtCd - dt);
       const dx = player.pos.x - e.pos.x, dz = player.pos.z - e.pos.z;
       const dist = Math.hypot(dx, dz);
+      const dist3 = Math.hypot(dx, player.pos.y + 1.2 - e.pos.y, dz);
+      // 坚守者：靠近时灵魂心跳加速（越近越快越响）
+      if (e.def.heartbeat && dist < 15 && !dead) {
+        e.beatT = (e.beatT ?? 1) - dt;
+        if (e.beatT <= 0) {
+          e.beatT = .35 + dist / 15 * .8;
+          thump(58, .14, .14 + (1 - dist / 15) * .18);
+        }
+      }
+      // 飞行生物（末影龙/蝙蝠）：三维巡航，不吃普通走地 AI
+      if (e.def.fly) {
+        e.aiT = (e.aiT ?? 0) - dt;
+        if (e.type === 'dragon') {
+          const ddef = dims[cur].def, dcx = ddef.sx / 2, dcz = ddef.sz / 2;
+          if (e.mode !== 'dive') e.mode = 'circle';
+          if (e.mode === 'circle') {
+            e.ang = (e.ang ?? rng() * 6.28) + dt * .5;
+            steer3D(e, dcx + Math.cos(e.ang) * 17, 33 + Math.sin(e.ang * 2) * 3.5,
+              dcz + Math.sin(e.ang) * 17, 5, dt);
+            if ((e.aiT <= 0 && dist < 32) || dist < 13) {   // 定期或被靠近 → 俯冲
+              e.mode = 'dive'; e.aiT = 4;
+              sfx(72, .7, 'sawtooth', .22); sfx(110, .5, 'square', .1);   // 龙啸
+            }
+          } else {
+            steer3D(e, player.pos.x, player.pos.y + 1.4, player.pos.z, 10, dt);
+            if (dist3 < 3.2 && e.attackCd <= 0) {           // 俯冲命中
+              e.attackCd = 1.2;
+              damagePlayer(e.def.dmg, '末影龙的俯冲');
+              const kb = new THREE.Vector3(dx, 0, dz).normalize();
+              player.vel.x += kb.x * 10 * kbrMult(); player.vel.z += kb.z * 10 * kbrMult();
+              player.vel.y = Math.max(player.vel.y, 5);
+              e.mode = 'circle'; e.aiT = 4 + rng() * 3;
+            }
+            if (e.aiT <= 0) { e.mode = 'circle'; e.aiT = 5 + rng() * 4; }
+          }
+          e.targetYaw = Math.atan2(e.vel.x, e.vel.z);
+          // 末地水晶回血（水晶柱还在就每秒 +3）
+          e.healT = (e.healT ?? 1) - dt;
+          if (e.healT <= 0) {
+            e.healT = 1;
+            if (e.hp < e.def.hp && endCrystals.some(p => getBlock(p[0], p[1], p[2]) === B.END_CRYSTAL))
+              e.hp = Math.min(e.def.hp, e.hp + 3);
+          }
+        } else {   // 蝙蝠：随机空中游荡
+          e.changeT -= dt;
+          if (e.changeT <= 0 || !e.flyTarget) {
+            e.changeT = 1.5 + rng() * 2;
+            e.flyTarget = new THREE.Vector3(
+              Math.max(2, Math.min(dims[cur].def.sx - 2, e.pos.x + (rng() - .5) * 12)),
+              Math.max(6, Math.min(42, e.pos.y + (rng() - .5) * 7)),
+              Math.max(2, Math.min(dims[cur].def.sz - 2, e.pos.z + (rng() - .5) * 12)));
+          }
+          steer3D(e, e.flyTarget.x, e.flyTarget.y, e.flyTarget.z, e.def.speed, dt);
+          e.targetYaw = Math.atan2(e.vel.x, e.vel.z);
+        }
+      }
+      // 走地生物
       const flee = !e.hostile && e.angry && dist < 12 && dist > .1;   // 被动生物被打后逃跑
       const chasing = e.hostile && dist < 14 && dist > .1;
       // 行走方向
-      if (flee) {
+      if (e.def.fly) {   // 飞行生物已在上方处理
+      } else if (flee) {
         e.targetYaw = Math.atan2(-dx, -dz);
         const sp = e.def.speed * 1.8;
         e.vel.x += (Math.sin(e.targetYaw) * sp - e.vel.x) * Math.min(1, dt * 8);
@@ -2472,9 +2762,11 @@
         e.vel.x += (Math.sin(e.targetYaw) * sp - e.vel.x) * Math.min(1, dt * 6);
         e.vel.z += (Math.cos(e.targetYaw) * sp - e.vel.z) * Math.min(1, dt * 6);
       }
-      // 重力 / 液体
+      // 重力 / 液体（飞行生物无重力，只受碰撞）
       const liquid = feetIn(e);
-      if (liquid && BLOCKS[liquid].liquid) {
+      if (e.def.fly) {
+        e.vel.multiplyScalar(1 - Math.min(1, dt * .4));   // 空气阻尼
+      } else if (liquid && BLOCKS[liquid].liquid) {
         e.vel.y += (2.2 - e.vel.y) * Math.min(1, dt * 4);   // 浮起
       } else e.vel.y -= 26 * dt;
       e.vel.y = Math.max(e.vel.y, -30);
@@ -2484,9 +2776,9 @@
       }
       const before = e.pos.clone();
       moveEntity(e, dt);
-      // 被卡住就跳
+      // 被卡住就跳（飞行生物绕行即可）
       const movedSq = (e.pos.x - before.x) ** 2 + (e.pos.z - before.z) ** 2;
-      if (movedSq < (e.vel.x * dt * .2) ** 2 && e.onGround && (Math.abs(e.vel.x) + Math.abs(e.vel.z)) > .5)
+      if (!e.def.fly && movedSq < (e.vel.x * dt * .2) ** 2 && e.onGround && (Math.abs(e.vel.x) + Math.abs(e.vel.z)) > .5)
         e.vel.y = 7.5;
       // 朝向 + 动画
       let dy = e.targetYaw - e.yaw;
@@ -2499,6 +2791,15 @@
       e.walkT += speed * dt * 3.2;
       const sw = Math.sin(e.walkT) * Math.min(.7, speed * .5);
       e.legs.forEach((leg, i) => leg.rotation.x = i % 2 ? sw : -sw);
+      if (e.wings) {   // 翼扇动（蝙蝠快、龙沉稳）
+        const flap = Math.sin(performance.now() / (e.type === 'bat' ? 90 : 260)) * (e.type === 'bat' ? .8 : .5);
+        e.wings.forEach((w, i) => w.rotation.z = (i ? -1 : 1) * flap);
+      }
+      if (e.type === 'dragon') {   // 龙尾摆动 + 俯仰姿态
+        e.tailSegs.forEach((s, i) => s.rotation.y = Math.sin(performance.now() / 420 + i * .8) * .2);
+        e.group.rotation.x = THREE.MathUtils.clamp(-e.vel.y * .06, -.45, .45);
+        e.group.rotation.z = Math.sin(performance.now() / 700) * .05;
+      }
       e.arms.forEach((arm, i) => {
         if (e.type === 'zombie' || e.type === 'pigman') arm.rotation.x = -1.45;
         else arm.rotation.x = i % 2 ? -sw : sw;
@@ -2532,7 +2833,8 @@
     }
   }
   const MOB_CN = { pig: '猪', sheep: '羊', cow: '牛', chicken: '鸡', creeper: '苦力怕',
-    zombie: '僵尸', pigman: '僵尸猪人', enderman: '末影人', mouse: '老鼠' };
+    zombie: '僵尸', pigman: '僵尸猪人', enderman: '末影人', mouse: '老鼠',
+    warden: '坚守者', dragon: '末影龙', bat: '蝙蝠' };
 
   // 玩家攻击生物：射线 vs 实体 AABB
   function rayEntityHit(o, d, max) {
@@ -2906,7 +3208,7 @@
     [[B.LOG, B.PLANK, B.CRAFT_TABLE, B.BOOKSHELF, B.PUMPKIN, B.CRIMSON_PLANK, B.WARPED_PLANK, B.NOTE,
       B.SLAB_OAK, B.STAIR_OAK, B.FENCE_OAK], 'wood'],
     [[B.GRASS, B.DIRT, B.SAND, B.SOUL_SAND, B.SNOW], 'soft'],
-    [[B.GLASS, B.ICE], 'glass'],
+    [[B.GLASS, B.ICE, B.END_CRYSTAL], 'glass'],
     [[B.LEAVES, B.WOOL, B.TNT, B.WOOL_ORANGE, B.WOOL_MAGENTA, B.WOOL_LBLUE, B.WOOL_YELLOW,
       B.WOOL_LIME, B.WOOL_PINK, B.WOOL_GRAY, B.WOOL_LGRAY, B.WOOL_CYAN, B.WOOL_PURPLE,
       B.WOOL_BLUE, B.WOOL_BROWN, B.WOOL_GREEN, B.WOOL_RED, B.WOOL_BLACK], 'leaf']
@@ -3240,6 +3542,12 @@
   function breakBlockAt(x, y, z, block, harvest = true) {
     setBlockData(x, y, z, removedFill(x, y, z));
     rebuildAt(x, z);
+    if (block === B.END_CRYSTAL) {   // 末地水晶：被破坏即爆炸（打断末影龙回血）
+      explode(x + .5, y + .5, z + .5);
+      showToast('💥 末地水晶被摧毁！');
+      player.exhaustion += .03;
+      return;
+    }
     if (harvest) spawnDrop(block, 1, x + .5, y + .4, z + .5);   // 采集等级不够则无掉落
     else showToast(`需要更好的镐才能采集「${BLOCKS[block].name}」`);
     player.exhaustion += .03;                      // 挖掘消耗饱食度
@@ -3433,6 +3741,8 @@
    * ============================================================ */
   const keys = new Set();
   let locked = false, lastSpace = 0, shake = 0;
+  const bossBarEl = document.getElementById('bossBar');
+  const bossFillEl = document.getElementById('bossFill');
   const overlay = document.getElementById('overlay');
   const inventoryEl = document.getElementById('inventory');
   const loadingEl = document.getElementById('loading');
@@ -4161,6 +4471,11 @@
     ambientParticles(dt);
     updateMusic(dt);
     updateDayNight(dt);
+    {   // 末影龙 Boss 血条
+      const drag = cur === 'end' ? entitiesOf().find(e => e.type === 'dragon') : null;
+      bossBarEl.style.display = drag ? 'block' : 'none';
+      if (drag) bossFillEl.style.width = Math.max(0, drag.hp / drag.def.hp * 100) + '%';
+    }
     clouds.children.forEach(c => {
       c.position.x += dt * 1.2;
       if (c.position.x > 340) c.position.x = -40;
@@ -4202,6 +4517,10 @@
     toggleMusic, musicReset: () => { musicStats.notes = 0; musicStats.pads = 0; },
     note: playNoteBlock, noteState,
     time: t => { if (t !== undefined) { timeOfDay = ((t % 1) + 1) % 1; } return +timeOfDay.toFixed(3); },
+    mobs: () => entitiesOf().map(e => ({ type: e.type, hp: e.hp, x: +e.pos.x.toFixed(1), y: +e.pos.y.toFixed(1), z: +e.pos.z.toFixed(1) })),
+    hurt: (i, dmg) => mobHit(entitiesOf()[i], dmg, new THREE.Vector3(0, 0, 0)),
+    cities: () => dims.overworld.cities || [], crystals: () => endCrystals.filter(p => getBlock(p[0], p[1], p[2]) === B.END_CRYSTAL).length,
+    spawn: spawnMob,
     set: (x, y, z, id) => { setBlockData(x, y, z, id); rebuildAt(x, z); },
     move: (ent, dt) => moveEntity(ent, dt),
     tickMobs: dt => updateMobs(dt),
