@@ -1539,15 +1539,32 @@
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(innerWidth, innerHeight);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  // 4K 超采样：内部渲染高度提到 2160（画质开关可关，localStorage 持久化）
+  // 4K 超采样 + 自适应降档：帧率低自动降分辨率，流畅自动升回（开关可整体关闭）
   let uhdOn = localStorage.getItem('mc_4k') !== '0';
+  let dynH = 2160, perfT = 0, perfCd = 0, adaptToastT = 0;
   function applyUHD() {
-    const ratio = uhdOn ? Math.max(1, Math.min(4, 2160 / innerHeight)) : Math.min(devicePixelRatio, 2);
+    const ratio = uhdOn ? Math.max(1, Math.min(4, dynH / innerHeight)) : Math.min(devicePixelRatio, 2);
     renderer.setPixelRatio(ratio);
     renderer.setSize(innerWidth, innerHeight);
   }
   applyUHD();
-  window.__setUHD = on => { uhdOn = on; localStorage.setItem('mc_4k', on ? '1' : '0'); applyUHD(); };
+  function autoQuality(dt, fps) {
+    if (!uhdOn || document.hidden) return;   // 页面不可见时浏览器限帧，不算卡
+    perfT += dt; perfCd = Math.max(0, perfCd - dt); adaptToastT = Math.max(0, adaptToastT - dt);
+    if (perfT < 1.5) return;
+    perfT = 0;
+    if (fps < 42 && perfCd <= 0) {   // 卡顿 → 降档
+      const next = Math.max(960, Math.round(dynH * .75 / 60) * 60);
+      if (next < dynH) {
+        dynH = next; applyUHD(); perfCd = 4;
+        if (adaptToastT <= 0) { adaptToastT = 12; showToast('⚡ 检测到卡顿，已自动优化画质'); }
+      }
+    } else if (fps > 57 && perfCd <= 0) {   // 富余 → 缓慢升回
+      const next = Math.min(2160, Math.round(dynH * 1.1 / 60) * 60);
+      if (next > dynH) { dynH = next; applyUHD(); perfCd = 6; }
+    }
+  }
+  window.__setUHD = on => { uhdOn = on; localStorage.setItem('mc_4k', on ? '1' : '0'); dynH = 2160; applyUHD(); };
   atlasTex.anisotropy = renderer.capabilities.getMaxAnisotropy();   // 斜视角地面纹理不再糊成一片
   document.body.appendChild(renderer.domElement);
 
@@ -4753,6 +4770,7 @@
     ambientParticles(dt);
     updateMusic(dt);
     updateDayNight(dt);
+    autoQuality(dt, fps);
     {   // 末影龙 Boss 血条
       const drag = cur === 'end' ? entitiesOf().find(e => e.type === 'dragon') : null;
       bossBarEl.style.display = drag ? 'block' : 'none';
@@ -4807,6 +4825,8 @@
       match: matchCraft() ? matchCraft().out : null }),
     craftPut: (i, id, n) => { craftCells[i] = { id, n }; renderCraft(); },
     craftTake: () => takeCraftResult(),
+    fps: () => fps,
+    res: () => { const c = document.body.querySelector(':scope > canvas'); return { buf: [c.width, c.height], dynH }; },
     set: (x, y, z, id) => { setBlockData(x, y, z, id); rebuildAt(x, z); },
     move: (ent, dt) => moveEntity(ent, dt),
     tickMobs: dt => updateMobs(dt),
