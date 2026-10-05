@@ -296,6 +296,11 @@
         <button class="btn" id="musicBtn" style="padding:2px 12px;font-size:13px">开</button>
         <span style="font-size:11px;color:#8aa3c0">（游戏中按 M 开关）</span>
       </div>
+      <div style="margin:2px 0 10px;font-size:13px;color:#cfe0f0">
+        🖥 画质：
+        <button class="btn" id="uhdBtn" style="padding:2px 12px;font-size:13px">4K 超采样：开</button>
+        <span style="font-size:11px;color:#8aa3c0">（卡顿可关）</span>
+      </div>
       <div style="margin-bottom:8px">
         <button class="btn" id="dimOver">🌍 主世界</button>
         <button class="btn red" id="dimNether">🔥 下界</button>
@@ -647,25 +652,26 @@
     for (let y = h2; y < Math.min(31, h2 + 2 + ((texRng() * 3) | 0)); y++) px(1, x, y, '#67c04a');
   }
   rect(1, 0, 0, TILE, 1, '#8bd961');
-  // 3 石头：多层裂纹 + 明暗碎屑
+  // 3 石头：多层裂纹 + 明暗碎屑 + 矿物光泽点
   clump(3, STONE_C, 6, 3);
   for (let i = 0; i < 4; i++) {
     let cx = (texRng() * 24) | 0, cy = (texRng() * 24) | 0;
     const dx = texRng() < .5 ? 1 : -1, len = 7 + ((texRng() * 7) | 0);
     for (let k = 0; k < len; k++) {
-      px(3, (cx + k * dx + TILE) % TILE, cy, k % 3 === 2 ? '#727272' : '#666666');
+      px(3, (cx + k * dx + TILE) % TILE, cy, k % 3 === 2 ? '#6c6c6c' : '#5e5e5e');
       if (texRng() < .35) px(3, (cx + k * dx + TILE) % TILE, cy + 1, '#787878');
       cy += texRng() < .38 ? 1 : 0;
     }
   }
-  speckle(3, '#9e9e9e', .03); speckle(3, '#6f6f6f', .04);
-  // 4 沙子：波浪涟漪（亮脊 + 暗谷）
+  speckle(3, '#a4a4a4', .035); speckle(3, '#6a6a6a', .05); speckle(3, '#b4b4b4', .012);
+  // 4 沙子：波浪涟漪（亮脊 + 暗谷）+ 细砂砾
   clump(4, ['#d9cb96', '#e2d5a3', '#eaddb0'], 5, 4);
   for (let y = 3; y < TILE; y += 6) for (let x = 0; x < TILE; x++) {
     const w = noise2(x * .25 + 7, y * .8);
     if (w > .52) px(4, x, Math.min(31, y + ((noise2(x * .4, y) * 2) | 0)), '#efe4bb');
     if (w < .3) px(4, x, Math.min(31, y + 2), '#cfc08d');
   }
+  speckle(4, '#f6ecc8', .04); speckle(4, '#bfae7d', .03);
   // 5/6 原木：宽条树皮 + 深沟 + 横裂 + 年轮径向纹
   {
     for (let x = 0; x < TILE; x++) {
@@ -719,6 +725,11 @@
     for (let r = 0; r < 4; r++) rect(ti, (r * 9 + ((r * 7) % 13)) % 30, r * 8, 1, 7, groove);
   }
   paintPlank(8, ['#a5793f', '#b08448', '#ba8e50'], '#7c5a30');
+  for (let i = 0; i < 6; i++) {   // 木板：长木纹丝 + 板钉
+    const y0 = 2 + ((texRng() * 28) | 0), x0 = (texRng() * 10) | 0, len = 8 + ((texRng() * 12) | 0);
+    for (let k = 0; k < len && x0 + k < 31; k++) if (texRng() < .8) px(8, x0 + k, y0, k % 4 ? '#93682f' : '#8a5f2a');
+  }
+  px(8, 3, 3, '#5a4520'); px(8, 28, 4, '#5a4520'); px(8, 4, 27, '#5a4520'); px(8, 27, 26, '#5a4520');   // 板钉
   // 9 玻璃：双色边框 + 加宽高光条
   rect(9, 0, 0, TILE, 2, '#dff1fa'); rect(9, 0, 30, TILE, 2, '#c4dcea');
   rect(9, 0, 0, 2, TILE, '#dff1fa'); rect(9, 30, 0, 2, TILE, '#c4dcea');
@@ -1528,6 +1539,16 @@
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(innerWidth, innerHeight);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  // 4K 超采样：内部渲染高度提到 2160（画质开关可关，localStorage 持久化）
+  let uhdOn = localStorage.getItem('mc_4k') !== '0';
+  function applyUHD() {
+    const ratio = uhdOn ? Math.max(1, Math.min(4, 2160 / innerHeight)) : Math.min(devicePixelRatio, 2);
+    renderer.setPixelRatio(ratio);
+    renderer.setSize(innerWidth, innerHeight);
+  }
+  applyUHD();
+  window.__setUHD = on => { uhdOn = on; localStorage.setItem('mc_4k', on ? '1' : '0'); applyUHD(); };
+  atlasTex.anisotropy = renderer.capabilities.getMaxAnisotropy();   // 斜视角地面纹理不再糊成一片
   document.body.appendChild(renderer.domElement);
 
   const solidMat = new THREE.MeshBasicMaterial({ map: atlasTex, vertexColors: true, alphaTest: .5 });
@@ -1598,6 +1619,8 @@
       const bd = BLOCKS[b];
       const T = bufs[bd.bucket || 'solid'];
       const lower = bd.liquid && getBlock(x, y + 1, z) !== b;
+      // 逐方块微色差（±3%）：打破同种方块贴图的机械重复感
+      const jit = 1 + (hash3(x, y ^ 1717, z) - .5) * .06;
       for (const box of boxesOf(x, y, z, bd)) {
         const [bx0, bx1, by0, by1, bz0, bz1] = box;
         for (const f of FACES) {
@@ -1636,7 +1659,7 @@
               ao = AO_MULT[s1 && s2 ? 0 : 3 - s1 - s2 - s3];
             }
             aos.push(ao);
-            const l = f.shade * ao;
+            const l = f.shade * ao * jit;
             T.c.push(l, l, l);
           }
           // AO 对角线翻转：避免明暗插值沿错误对角线产生裂痕
@@ -3886,6 +3909,20 @@
   musicBtnEl.addEventListener('click', e => { e.stopPropagation(); toggleMusic(); refreshMusicUI(); });
   refreshMusicUI();
 
+  // 画质开关（4K 超采样）
+  const uhdBtnEl = document.getElementById('uhdBtn');
+  function refreshUHDUI() {
+    const on = localStorage.getItem('mc_4k') !== '0';
+    uhdBtnEl.textContent = `4K 超采样：${on ? '开' : '关'}`;
+    uhdBtnEl.style.background = on ? '#3a7d2c' : '#a03030';
+  }
+  uhdBtnEl.addEventListener('click', e => {
+    e.stopPropagation();
+    window.__setUHD(localStorage.getItem('mc_4k') === '0');
+    refreshUHDUI();
+  });
+  refreshUHDUI();
+
   function openInventory() {
     inventoryOpen = true;
     hideHelp();
@@ -4740,7 +4777,7 @@
   window.addEventListener('resize', () => {
     camera.aspect = innerWidth / innerHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
+    applyUHD();
   });
 
   // 调试 / 测试钩子
