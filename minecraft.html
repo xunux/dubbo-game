@@ -542,7 +542,7 @@
     { in: [[127, 1], [132, 1]],  out: [131, 1] },   // 下界合金靴
   ];
 
-  let HOTBAR = [B.PLANK, B.GLASS, B.STONE, B.LOG, B.SAND, B.TNT, B.GLOWSTONE, B.CRAFT_TABLE, B.STONE_BRICK];
+  let HOTBAR = [0, 0, 0, 0, 0, 0, 0, 0, 0];   // 出生空手：物品栏全空，全靠自己挖
 
   // 维度定义
   const DIM_DEFS = {
@@ -4296,6 +4296,7 @@
     c.width = size; c.height = size;
     const ictx = c.getContext('2d');
     ictx.imageSmoothingEnabled = false;
+    if (!id) return c;   // 空栏位
     ictx.fillStyle = 'rgba(255,255,255,.12)';
     ictx.fillRect(0, 0, size, size);
     const tile = BLOCKS[id] ? BLOCKS[id].tiles[1] : defOf(id).tile;
@@ -4695,6 +4696,7 @@
     g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(0, H - 6, W, 6);    // 地面阴影收边
   }
   function showBlockName() {
+    if (!HOTBAR[selected]) { blockNameEl.style.opacity = 0; return; }   // 空栏位不显示名字
     blockNameEl.textContent = `${defOf(HOTBAR[selected]).name} ×${invCount(HOTBAR[selected])}`;
     blockNameEl.style.opacity = 1;
     clearTimeout(nameTimer);
