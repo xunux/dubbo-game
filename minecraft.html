@@ -520,7 +520,7 @@
     { in: [[B.OBSIDIAN, 1], [B.GLOWSTONE, 1]], out: [B.GLOWSTONE, 4] },
     // 工具（简化配方：原木当木棍）
     { in: [[B.PLANK, 3], [B.LOG, 1]],         out: [110, 1] },   // 木镐
-    { in: [[B.COBBLE, 3], [B.LOG, 1]],        out: [111, 1] },   // 石镐
+    { in: [[B.STONE, 3], [B.LOG, 2]],         out: [111, 1] },   // 石镐（石头+原木）
     { in: [[B.IRON_ORE, 3], [B.LOG, 1]],      out: [112, 1] },   // 铁镐
     { in: [[B.DIAMOND_ORE, 3], [B.LOG, 1]],   out: [113, 1] },   // 钻石镐
     { in: [[B.PLANK, 2], [B.LOG, 1]],         out: [114, 1] },   // 木剑
@@ -1549,7 +1549,7 @@
   }
   applyUHD();
   function autoQuality(dt, fps) {
-    if (!uhdOn || document.hidden) return;   // 页面不可见时浏览器限帧，不算卡
+    if (!uhdOn || document.hidden || building) return;   // 隐藏页面限帧/初次建世界时的掉帧都不算卡
     perfT += dt; perfCd = Math.max(0, perfCd - dt); adaptToastT = Math.max(0, adaptToastT - dt);
     if (perfT < 1.5) return;
     perfT = 0;
@@ -3728,7 +3728,9 @@
     }
     const stage = Math.min(9, (mining.progress * 10) | 0);
     crackMesh.visible = true;
-    crackMesh.position.set(hit.x + .5, hit.y + .5, hit.z + .5);
+    const halfShape = BLOCKS[hit.block].shape === 'slab' || BLOCKS[hit.block].shape === 'stair';
+    crackMesh.scale.set(1, halfShape ? .5 : 1, 1);
+    crackMesh.position.set(hit.x + .5, hit.y + (halfShape ? .25 : .5), hit.z + .5);
     crackTex.offset.x = stage / 10;
     if (mining.progress >= 1) {
       breakBlockAt(hit.x, hit.y, hit.z, hit.block, harvest);
@@ -3802,7 +3804,11 @@
     const id = HOTBAR[selected];
     if (FOODS[id]) { eatFood(); return; }   // 手持食物右键 = 进食
     const pre = currentTarget();
-    if (pre && pre.block === B.NOTE) { playNoteBlock(pre.x, pre.y, pre.z); return; }   // 指向音符盒 = 演奏
+    if (pre && pre.block === B.NOTE) {   // 指向音符盒 = 演奏（按住不连发，音阶一级一级来）
+      playNoteBlock(pre.x, pre.y, pre.z);
+      placeTimer = 1.2;
+      return;
+    }
     if (!BLOCKS[id]) { swing = 1; showToast('工具不能放置，用它去挖掘或战斗吧'); return; }
     const blk = currentTarget();
     if (!blk || (blk.nx === 0 && blk.ny === 0 && blk.nz === 0)) return;
@@ -4547,10 +4553,15 @@
     }
     renderCraft(); refreshInventoryUI();
   });
-  function returnCraftItems() {   // 关背包时材料退回
+  function returnCraftItems() {   // 关背包时材料退回（含手上悬空的拖拽）
     for (let i = 0; i < 9; i++) if (craftCells[i]) {
       invAdd(craftCells[i].id, craftCells[i].n);
       craftCells[i] = null;
+    }
+    if (drag) {
+      if (drag.moved) invAdd(drag.id, drag.n);   // 已拿起的收回背包
+      drag.ghost?.remove();
+      drag = null;
     }
     renderCraft();
   }
@@ -4725,7 +4736,12 @@
   }
   function updateHighlight() {
     const hit = currentTarget();
-    if (hit) { highlight.visible = true; highlight.position.set(hit.x + .5, hit.y + .5, hit.z + .5); }
+    if (hit) {
+      highlight.visible = true;
+      const hs = BLOCKS[hit.block].shape === 'slab' || BLOCKS[hit.block].shape === 'stair';
+      highlight.scale.set(1, hs ? .5 : 1, 1);
+      highlight.position.set(hit.x + .5, hit.y + (hs ? .25 : .5), hit.z + .5);
+    }
     else highlight.visible = false;
   }
   function ambientParticles(dt) {
