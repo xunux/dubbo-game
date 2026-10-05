@@ -2584,9 +2584,15 @@
     const id = HOTBAR[selected];
     if (!id) return;
     const tool = !BLOCKS[id];
-    heldMesh = makeBlockCube(id, tool ? .72 : .27);
-    heldMesh.position.set(.05, .04, -.5);
-    heldMesh.rotation.set(.08, tool ? .62 : .45, tool ? -.32 : .05);   // 工具斜握，剑尖朝外
+    heldMesh = makeBlockCube(id, tool ? .58 : .27);
+    if (tool) {
+      // 贴图里工具沿对角线绘制：整体绕 Z 转 45° 让剑刃/镐头竖直朝上，柄握在手中
+      heldMesh.position.set(.32, -.12, -.46);
+      heldMesh.rotation.set(0, .35, Math.PI / 4 + .12);
+    } else {
+      heldMesh.position.set(.04, -.02, -.42);
+      heldMesh.rotation.set(.15, .45, .05);
+    }
     armGroup.add(heldMesh);
   }
   let viewMode = 0;   // 0 第一人称 1 第三人称
