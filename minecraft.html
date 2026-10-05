@@ -4351,10 +4351,12 @@
       closeInventory();
       showToast(`已将「${defOf(id).name}」放入栏位 ${selected + 1}`);
     });
-    cell.addEventListener('mousedown', e => {   // 按住拖动 → 拖进合成格
-      if (e.button !== 0 || ARMOR[id]) return;
+    cell.addEventListener('mousedown', e => {   // 按住拖动 → 拖进合成格；右键拖一半
+      if (ARMOR[id]) return;
       const n = invCount(id);
-      if (n > 0) startDragSrc(e, id, n, -1);
+      if (n <= 0) return;
+      if (e.button === 0) startDragSrc(e, id, n, -1);
+      else if (e.button === 2 && !drag) startDragSrc(e, id, Math.ceil(n / 2), -1);
     });
     invGrid.appendChild(cell);
     invCells.push({ id, cell, cnt });
@@ -4371,8 +4373,17 @@
     el.className = 'cslot';
     el.dataset.cell = i;
     el.addEventListener('mousedown', e => {
-      if (e.button !== 0) return;
       const it = craftCells[i];
+      if (e.button === 2 && !drag) {   // 右键点格子：退一个回背包
+        if (it) {
+          invAdd(it.id, 1);
+          it.n--;
+          if (it.n <= 0) craftCells[i] = null;
+          renderCraft(); refreshInventoryUI();
+        }
+        return;
+      }
+      if (e.button !== 0) return;
       if (it) startDragSrc(e, it.id, it.n, i);
     });
     craftGridEl.appendChild(el);
@@ -4382,7 +4393,7 @@
     const tot = {};
     let kinds = 0;
     craftCells.forEach(it => { if (it) { if (!(it.id in tot)) kinds++; tot[it.id] = (tot[it.id] || 0) + it.n; } });
-    if (!kinds) return '把背包物品拖进 3×3 格子（材料的种类和数量要正好匹配配方）';
+    if (!kinds) return '左键拖整组 / 右键拖一半 / 拖动中右键放一个 · 右键点格子退一个';
     // 找"格子材料都在其配方里"的候选中差额最小的一个
     let best = null;
     for (const rec of RECIPES) {
@@ -4477,7 +4488,8 @@
       const g = document.createElement('div');
       g.id = 'dragGhost';
       g.appendChild(makeIcon(drag.id, 38));
-      if (drag.n > 1) { const c = document.createElement('span'); c.className = 'cnt'; c.textContent = drag.n; g.appendChild(c); }
+      drag.cntEl = null;
+      if (drag.n > 1) { const c = document.createElement('span'); c.className = 'cnt'; c.textContent = drag.n; g.appendChild(c); drag.cntEl = c; }
       document.body.appendChild(g);
       drag.ghost = g;
       renderCraft(); refreshInventoryUI();
@@ -4489,8 +4501,26 @@
     const t = document.elementFromPoint(e.clientX, e.clientY);
     if (t && t.classList.contains('cslot')) t.classList.add('over');
   });
+  // 拖动中按右键：在悬停的合成格放一个（MC 标准拆组操作）
+  document.addEventListener('mousedown', e => {
+    if (e.button !== 2 || !drag || !drag.moved) return;
+    const t = document.elementFromPoint(e.clientX, e.clientY);
+    const cellEl = t?.closest?.('.cslot');
+    if (!cellEl || drag.fromCell === -2) return;
+    const i = +cellEl.dataset.cell;
+    const cur = craftCells[i];
+    if (!cur) craftCells[i] = { id: drag.id, n: 1 };
+    else if (cur.id === drag.id) cur.n += 1;
+    else return;
+    drag.n--;
+    if (drag.cntEl) drag.cntEl.textContent = drag.n;
+    if (drag.n <= 0) { drag.ghost?.remove(); drag = null; }
+    blockSnd(drag ? drag.id : cur.id, 'place');
+    renderCraft(); refreshInventoryUI();
+  });
   document.addEventListener('mouseup', e => {
     if (!drag) return;
+    if (e.button !== 0) return;   // 右键松手不打断拖拽（右键在拖拽中=放一个），最终用左键落下
     const d = drag; drag = null;
     document.querySelectorAll('.cslot.over').forEach(el => el.classList.remove('over'));
     d.ghost?.remove();
