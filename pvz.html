@@ -2076,6 +2076,9 @@ cv.addEventListener('pointerdown',e=>{
   if(Math.hypot(x-BTN_MUTE.x,y-BTN_MUTE.y)<BTN_MUTE.r+4){muted=!muted;return;}
   if(Math.hypot(x-BTN_PAUSE.x,y-BTN_PAUSE.y)<BTN_PAUSE.r+4){togglePause();return;}
   if(paused)return;
+  // 阳光(优先于种子栏, 阳光可能落在顶栏附近)
+  for(let i=S.suns.length-1;i>=0;i--){const su=S.suns[i];
+    if(!su.fly&&Math.hypot(x-su.x,y-su.y)<42){su.fly=true;SFX.sunPick();return;}}
   if(y<90){
     for(let i=0;i<S.seed.length;i++){
       const px=112+i*70;
@@ -2145,6 +2148,7 @@ window.__pvz={
   pump(n,dt){n=n||1;dt=dt||0.05;for(let i=0;i<n;i++){if(scene==='playing'&&!paused&&S)update(dt);}render();return this.s;},
   get dbg(){return {scene,paused,overT:S&&Math.round(S.overT*10)/10};},
   get graves(){return S?S.graves.map(g=>({r:g.r,c:g.c})):null;},
+  get suns(){return S?S.suns.map(s=>({x:Math.round(s.x),y:Math.round(s.y),land:s.land,fly:s.fly,val:s.val})):null;},
   get s(){return S?{t:Math.round(S.t),sun:S.sun,plants:S.plants.length,z:S.zombies.length,wave:S.waveI+'/'+S.waves.length,over:S.over,lv:LD.idx}:null;},
   get save(){return JSON.parse(JSON.stringify(SAVE));},
   give(n){if(S)S.sun+=n;},
