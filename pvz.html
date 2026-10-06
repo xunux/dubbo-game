@@ -27,8 +27,8 @@
   /* 关卡选择 */
   #levels .world{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:10px}
   .worldName{color:#ffe14d;font-size:16px;font-weight:700;text-shadow:0 2px 2px #000;letter-spacing:3px}
-  .lvRow{display:flex;gap:10px}
-  .lvNode{width:52px;height:52px;border-radius:50%;border:3px solid;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:#fff;text-shadow:0 1px 2px #000;pointer-events:auto;cursor:pointer;font-family:inherit;background:linear-gradient(#8bc45e,#5a9432);border-color:#2c6a14;box-shadow:0 3px 0 #2c6a14}
+  .lvRow{display:flex;gap:7px;flex-wrap:wrap;max-width:660px;justify-content:center}
+  .lvNode{width:42px;height:42px;border-radius:50%;border:3px solid;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#fff;text-shadow:0 1px 2px #000;pointer-events:auto;cursor:pointer;font-family:inherit;background:linear-gradient(#8bc45e,#5a9432);border-color:#2c6a14;box-shadow:0 3px 0 #2c6a14}
   .lvNode.done{background:linear-gradient(#5bb7d4,#2e7fa8);border-color:#1b5673}
   .lvNode.lock{background:linear-gradient(#777,#555);border-color:#333;cursor:not-allowed;box-shadow:none;color:#aaa}
   .lvNode:hover:not(.lock){filter:brightness(1.12)}
@@ -77,7 +77,7 @@
   <div id="ui">
     <div id="menu" class="panel">
       <h1>植物大战僵尸</h1>
-      <p class="sub">冒险模式 · 五个世界 · 三十种植物</p>
+      <p class="sub">冒险模式 · 五个世界 × 20 关 · 100 种植物 · 每关解锁一种</p>
       <button id="advBtn" class="big">冒 险 模 式</button>
       <div style="display:flex;gap:12px">
         <button id="almBtn" class="alt">图 鉴</button>
@@ -289,10 +289,10 @@ const ORDER=['peashooter',
  'lily','kelp','squash','threepeater','jalapeno','tallnut','crabgrass','watermine','lotus','waterhyacinth','totem','cheer','umbrella','beehive','snowflower','dandelion','tumbleweed','lavataro','springsnap','thornvine',
  'plantern','cactus','blover','starfruit','pumpkin','spikeweed','spikerock','firespike','icespike','plasma','scatterpea','doublecactus','icecrystal','matchflower','poisonfang','rainbowpea','bonkchoy','pigcage','giantsquash','bamboo',
  'pot','cabbage','kernel','melon','torchwood','wintermelon','coconut','cobcannon','banana','moldmelon','gatling','volcanopepper','quaketaro','timefern','moneyrain','strawberry','diamondflower','sunring','sunbeam'];
-const PUNLOCK=[];{let i=1;for(let L=0;L<25&&i<ORDER.length;L++)PUNLOCK[L]=ORDER.slice(i,i+=L<24?4:3);}
+const PUNLOCK=[];for(let L=0;L<100;L++)PUNLOCK[L]=L<99?[ORDER[L+1]]:[]; // 每关解锁1种,最终关给奖杯
 function migrateSave(){ // 按已通关进度补发新植物
   let added=false;
-  for(let i=0;i<SAVE.lv&&i<25;i++)for(const k of (PUNLOCK[i]||[]))
+  for(let i=0;i<SAVE.lv&&i<100;i++)for(const k of (PUNLOCK[i]||[]))
     if(!SAVE.unlocked.includes(k)){SAVE.unlocked.push(k);SAVE.seenP[k]=1;added=true;}
   if(added)storeSave();
 }
@@ -316,24 +316,24 @@ const ZD={
 };
 // 每关僵尸池: [type, weight, 最低关卡(1-5)]
 const ZPOOL=[
- [['normal',3,1],['cone',1,2],['pole',1.5,3],['bucket',.7,4],['garg',.25,5]],
- [['paper',2,1],['normal',2,1],['cone',2,1],['bucket',.8,2],['imp',1,3],['garg',.4,5]],
- [['ducky',2,1],['normal',2,1],['cone',2,1],['snorkel',1.3,2],['bucket',.8,3],['football',.7,4]],
- [['balloon',1.6,1],['normal',1.6,1],['paper',1.6,1],['cone',1.4,1],['ducky',1,1],['digger',.9,2],['snorkel',1,3],['football',.6,4]],
- [['bungee',.8,1],['normal',1.6,1],['cone',1.6,1],['bucket',.8,1],['catapult',.7,2],['football',.6,3],['garg',.35,4]],
+ [['normal',3,1],['cone',1.2,3],['pole',1.2,6],['bucket',.7,10],['garg',.22,16]],
+ [['paper',2,1],['normal',2,1],['cone',2,3],['bucket',.8,6],['imp',1,8],['garg',.35,14]],
+ [['ducky',2,1],['normal',2,1],['cone',2,3],['snorkel',1.3,5],['bucket',.8,8],['football',.7,12]],
+ [['balloon',1.6,1],['normal',1.6,1],['paper',1.6,2],['cone',1.4,3],['ducky',1,4],['digger',.9,6],['snorkel',1,8],['football',.6,12]],
+ [['bungee',.8,1],['normal',1.6,1],['cone',1.6,3],['bucket',.8,4],['catapult',.7,5],['football',.6,8],['garg',.35,10]],
 ];
-function levelDef(idx){ // idx 0..24
-  const wi=idx/5|0,li=idx%5+1,w=WORLDS[wi];
-  const budget=Math.round(9+li*4.5+wi*7);
-  const nW=li===5?10:8;
+function levelDef(idx){ // idx 0..99, 5世界×20关
+  const wi=Math.min(4,idx/20|0),li=idx%20+1,w=WORLDS[wi];
+  const budget=Math.round(8+li*2.2+wi*8);
+  const nW=li<8?8:(li<15?9:(li<20?10:12));
   const ROWS=w.rows.length,CH=Math.floor((H-GY-22)/ROWS);
-  const waves=[];let left=budget;
-  const t0=20+li*3,gap=(150-li*4)/nW;
+  const waves=[];
+  const t0=18+li*2,gap=Math.max(6,(160-li*3)/nW);
   for(let i=0;i<nW;i++){
     const huge=(i===(nW>>1))||i===nW-1;
     let n=Math.max(1,Math.round(budget/nW*(huge?2.1:1)*rand(.85,1.15)));
     if(i===nW-1)n=Math.max(n,3);
-    waves.push({t:t0+gap*(i+1)+ (i===0?0:rand(-3,3)),huge,final:i===nW-1,n});
+    waves.push({t:t0+gap*(i+1)+(i===0?0:rand(-3,3)),huge,final:i===nW-1,n});
   }
   return {idx,wi,li,w,ROWS,CH,waves,totalZ:budget};
 }
@@ -420,7 +420,7 @@ function reset(){
   for(let r=0;r<LD.ROWS;r++)S.mowers.push({row:r,x:GX-30,on:false,gone:false,water:waterRow(r),roof:!!w.roof});
   // 黑夜: 随机墓碑(右侧3列, 不与清理者同行同格)
   if(w.graves){
-    const n=w.graves+LD.li;
+    const n=Math.min(3+Math.floor(LD.li/3),8);
     for(let i=0;i<n;i++){
       const r=Math.floor(Math.random()*LD.ROWS),c=6+Math.floor(Math.random()*3);
       if(!S.graves.some(g=>g.r===r&&g.c===c))S.graves.push({r,c,ph:rand(0,9)});
@@ -575,9 +575,11 @@ function update(dt){
   updShots(dt);
   // 阳光
   for(const su of S.suns){
-    if(su.fly){const dx=52-su.x,dy=40-su.y,d=Math.hypot(dx,dy);
-      if(d<16){su.rm=true;S.sun+=su.val;S.sunPulse=1;}
-      else{su.x+=dx/d*1050*dt;su.y+=dy/d*1050*dt;}continue;}
+    if(su.fly){su.flyT=(su.flyT||0)+dt;
+      if(su.flyT>1.2){su.rm=true;continue;}
+      const dx=52-su.x,dy=40-su.y,d=Math.hypot(dx,dy);
+      if(d<16)su.rm=true;
+      else{su.x+=dx/d*1400*dt;su.y+=dy/d*1400*dt;}continue;}
     if(!su.land){
       if(su.g>0){su.vy+=su.g*dt;su.x+=su.vx*dt;su.y+=su.vy*dt;if(su.vy>0&&su.y>=su.ty)su.land=true;}
       else{su.y+=su.vy*dt;if(su.y>=su.ty)su.land=true;}
@@ -642,13 +644,13 @@ function archUpd(p,dt){
   switch(PD[p.kind].arch){
     case 'shooter':{
       if(ap.hide&&S.zombies.some(z=>!z.dead&&!z.under&&!z.bun&&z.row===p.row&&Math.abs(z.x-p.cx)<2.2*CW))break; // 胆小菇缩头
-      const has=ap.back
-        ?S.zombies.some(z=>!z.dead&&!z.under&&!z.bun&&!z.dive&&z.row===p.row&&z.x<p.cx+24)
-        :S.zombies.some(z=>!z.dead&&!z.under&&!z.bun&&z.row===p.row&&z.x>p.cx-24&&z.x<W+40&&(!z.fly||ap.proj==='spike')&&!z.dive);
-      if(has&&p.cool<=0){
+      const hasF=S.zombies.some(z=>!z.dead&&!z.under&&!z.bun&&z.row===p.row&&z.x>p.cx-24&&z.x<W+40&&(!z.fly||ap.proj==='spike')&&!z.dive);
+      const hasB=!!ap.back&&S.zombies.some(z=>!z.dead&&!z.under&&!z.bun&&!z.fly&&!z.dive&&z.row===p.row&&z.x<p.cx+24);
+      if((hasF||hasB)&&p.cool<=0){
         p.cool=ap.rate*(cheerNear(p)?.72:1);
-        fireX(p,ap,1);if(ap.back)fireX(p,ap,-1);
-        p.burst=(ap.n||1)-1;p.bT=0;
+        if(hasF)fireX(p,ap,1);
+        if(hasB)fireX(p,ap,-1);
+        p.burst=hasF?(ap.n||1)-1:0;p.bT=0;
       }
       if(p.burst>0){p.bT-=dt;if(p.bT<=0){p.bT=0.12;fireX(p,ap,1);p.burst--;}}
       break;}
@@ -923,9 +925,14 @@ function updPlants(dt){
         break;}
     }
   }
+  const deadBases=S.plants.filter(p=>p.rm&&p.base);
+  S.plants=S.plants.filter(p=>!p.rm);
+  for(const b of deadBases){ // 基座(睡莲/花盆)损毁 → 其上植物随之沉没
+    const m=S.plants.find(q=>!q.rm&&!q.base&&q.row===b.row&&q.col===b.col);
+    if(m){m.rm=true;leafBurst(m);}
+  }
   S.plants=S.plants.filter(p=>!p.rm);
 }
-// ---------------- 僵尸
 function updZombies(dt){
   for(const z of S.zombies){
     if(z.gone)continue;
@@ -1041,9 +1048,9 @@ function updZombies(dt){
         if(target.hp<=0){
           if(PD[target.kind].boomDeath){target.rm=true;explode(target.cx,target.row,true,PD[target.kind].boomDeath.r,PD[target.kind].boomDeath.dmg);}
           else{target.rm=true;leafBurst(target);}}}
-    }else{z.eat=false;z.x-=z.speed*spdMul*dt;}
-    // 推车
-    if(front<GX+4){
+    }else{z.eat=false;z.x+=(z.dirR?1:-1)*z.speed*spdMul*dt;if(z.dirR&&z.x>W+80)z.gone=true;}
+    // 推车/进屋(仅对向左进攻的僵尸)
+    if(!z.dirR&&front<GX+4){
       const m=S.mowers[z.row];
       if(!m.on&&!m.gone){m.on=true;SFX.mower();S.shake=Math.max(S.shake,4);}
       else if(!m.on&&front<GX-58){gameLose();return;}
@@ -1669,6 +1676,7 @@ function drawBubbleOverlay(p,t){
 const SHADE_A=document.createElement('canvas'),SHADE_B=document.createElement('canvas');
 SHADE_A.width=SHADE_B.width=280;SHADE_A.height=SHADE_B.height=340;
 function renderShaded(drawFn,sx,sy,sc,alpha,noShadow){
+  const heavy=S&&((S.zombies.length||0)+(S.plants.length||0))>90; // 实体过多时降级保帧率
   const a=SHADE_A.getContext('2d'),b=SHADE_B.getContext('2d');
   a.setTransform(1,0,0,1,0,0);a.clearRect(0,0,280,340);
   const old=ctx;ctx=a;
@@ -1689,6 +1697,7 @@ function renderShaded(drawFn,sx,sy,sc,alpha,noShadow){
   g.addColorStop(0,'#ffffff');g.addColorStop(1,'#ded6d0');
   a.fillStyle=g;a.fillRect(0,0,280,340);
   a.globalCompositeOperation='screen';
+  if(!heavy){
   g=a.createRadialGradient(100,90,5,100,90,100);
   g.addColorStop(0,'rgba(255,250,238,.34)');g.addColorStop(1,'rgba(255,250,238,0)');
   a.fillStyle=g;a.fillRect(0,0,280,340);
@@ -1697,6 +1706,7 @@ function renderShaded(drawFn,sx,sy,sc,alpha,noShadow){
   g=a.createLinearGradient(0,0,0,340);
   g.addColorStop(0,'rgba(255,244,228,.28)');g.addColorStop(1,'rgba(255,228,200,.10)');
   a.fillStyle=g;a.fillRect(0,0,280,340);
+  }
   a.globalCompositeOperation='destination-in';
   a.drawImage(SHADE_B,0,0);
   a.restore();
@@ -1706,7 +1716,7 @@ function renderShaded(drawFn,sx,sy,sc,alpha,noShadow){
   const s=sc===undefined?1:sc;
   ctx.scale(s,s);
   ctx.globalAlpha=alpha===undefined?1:alpha;
-  if(!noShadow){
+  if(!noShadow&&!heavy){
     ctx.save();
     ctx.globalAlpha=Math.min(ctx.globalAlpha,.32)*(alpha===undefined?1:1);
     ctx.filter='blur(3px)';
@@ -2449,8 +2459,7 @@ function drawCatapult(z){
   ctx.restore();
 }
 function drawMower(m){
-  const by=rowBase(m.row)-2;
-  ctx.save();ctx.translate(m.x,by);
+  ctx.save();
   if(m.on)ctx.translate(0,Math.sin(visT*40)*1.2);
   ell(0,4,22,5,'rgba(0,0,0,.2)');
   ctx.strokeStyle='#5a5a5a';ctx.lineWidth=4;ctx.lineCap='round';
@@ -2681,13 +2690,18 @@ function drawWorld(){
     rowPersp(r,()=>{
       for(const p of S.plants)if(p.row===r&&p.base)drawPlantAt(p.kind,p.cx,p.cy,1,p);
       for(const p of S.plants)if(p.row===r&&!p.base&&p.kind==='spikeweed')drawPlantAt(p.kind,p.cx,p.cy,1,p);
-      const m=S.mowers[r];if(m&&!m.gone)drawMower(m);
       for(const p of S.plants)if(p.row===r&&!p.base&&p.kind!=='spikeweed')drawPlantAt(p.kind,p.cx,p.cy,1,p);
       for(const pe of S.peas)if(pe.row===r)drawPea(pe);
       for(const f of S.fumes)if(f.row===r)drawFume(f);
       const zs=S.zombies.filter(z=>z.row===r).sort((a,b)=>b.x-a.x);
       for(const z of zs)if(!z.bun)drawZombie(z);
     });
+  }
+  // 小推车: 屏幕坐标垂直对齐, 仅保留尺寸透视(近大远小)
+  for(let r=0;r<LD.ROWS;r++){
+    const m=S.mowers[r];if(!m||m.gone)continue;
+    const rs=rowScale(r);
+    ctx.save();ctx.translate(m.x,rowBase(r)-2);ctx.scale(rs,rs);drawMower(m);ctx.restore();
   }
   for(const z of S.zombies)if(z.bun)drawZombie(z);
   // 投射物(跨行)
@@ -2722,9 +2736,20 @@ function drawWorld(){
   }
   drawFog();
   for(const su of S.suns){
+    if(su.fly)continue; // 飞行中的阳光在 UI 层之上绘制
     const bl=su.land&&su.life<3?(Math.sin(visT*10)*.5+.5):1;
     ctx.globalAlpha=bl;
     drawSunIcon(su.x,su.y,24,visT*.8+su.ph);
+    ctx.globalAlpha=1;
+  }
+}
+function drawFlyingSuns(){ // 收集中的阳光: 顶层飞行, 越接近计数器越小越淡
+  for(const su of S.suns){
+    if(!su.fly)continue;
+    const d=Math.hypot(52-su.x,40-su.y);
+    const k=clamp(d/300,0,1);
+    ctx.globalAlpha=.45+.55*k;
+    drawSunIcon(su.x,su.y,10+k*14,visT*.8+su.ph);
     ctx.globalAlpha=1;
   }
 }
@@ -2745,7 +2770,7 @@ function render(){
   if(LD)ctx.drawImage(BGS[LD.wi],0,0,W,H);
   else ctx.drawImage(BGS[0],0,0,W,H);
   if(scene==='menu')drawMenuScene();
-  else{drawWorld();drawUI();drawBanner();}
+  else{drawWorld();drawUI();drawFlyingSuns();drawBanner();}
   ctx.restore();
 }
 function cellAt(x,y){
@@ -2802,13 +2827,13 @@ function openLevels(){
     const div=document.createElement('div');div.className='world';
     div.innerHTML=`<div class="worldName">${w.name}</div>`;
     const row=document.createElement('div');row.className='lvRow';
-    for(let li=0;li<5;li++){
+    for(let li=0;li<20;li++){
       const idx=wi*5+li;
       const b=document.createElement('button');b.className='lvNode';
       const unlocked=idx<=SAVE.lv;
       if(SAVE.done[idx])b.classList.add('done');
       if(!unlocked)b.classList.add('lock');
-      b.textContent=unlocked?`${wi+1}-${li+1}`:'🔒';
+      b.textContent=unlocked?`${li+1}`:'🔒';
       if(unlocked)b.onclick=()=>openSeeds(idx);
       row.appendChild(b);
     }
@@ -2824,7 +2849,7 @@ function openSeeds(idx){
   if(w.roof)pick.base='pot';
   pick.list=pick.base?[pick.base]:[];
   showPanel('seeds');
-  $('seedTitle').textContent=`${w.short} 第${idx%5+1}关 · 选择你的种子 (最多${pick.max}种)`;
+  $('seedTitle').textContent=`${w.short} 第${idx%20+1}关 · 选择你的种子 (最多${pick.max}种)`;
   refreshSeeds();
 }
 let seedCat='all';
@@ -2872,7 +2897,7 @@ function beginLevel(){
   banner('准备种植物！',2.2);
   bgm.on=true;bgm.step=0;bgm.next=0;bgm.wi=LD.wi;
   // 世界开场白
-  if(idx%5===0&&!SAVE.dave[idx]){
+  if(idx%20===0&&!SAVE.dave[idx]){
     SAVE.dave[idx]=1;storeSave();
     $('daveText').textContent=LD.w.dave;
     $('dave').classList.remove('hidden');
@@ -2897,7 +2922,7 @@ function showEnd(){
     SAVE.lv=Math.max(SAVE.lv,LD.idx+1);
     storeSave();SFX.fanfare();
   }
-  $('nextBtn').classList.toggle('hidden',!(win&&LD.idx<24));
+  $('nextBtn').classList.toggle('hidden',!(win&&LD.idx<99));
   $('end').classList.remove('hidden');
 }
 // ---- 图鉴
@@ -2927,6 +2952,7 @@ let gmenuOpen=false;
 function openGameMenu(){
   if(scene!=='playing'||!S||S.over||gmenuOpen)return;
   gmenuOpen=true;paused=true;bgm.on=false;
+  $('dave').classList.add('hidden'); // 与戴夫对话框互斥
   $('pauseTip').classList.add('hidden');
   $('gmenu').classList.remove('hidden');
 }
@@ -2948,7 +2974,7 @@ function quitToLevels(){
   paused=false;bgm.on=false;openLevels();
 }
 // ---- 按钮绑定
-$('advBtn').onclick=()=>{ac();const idx=Math.min(24,SAVE.lv);openSeeds(idx);};
+$('advBtn').onclick=()=>{ac();const idx=Math.min(99,SAVE.lv);openSeeds(idx);};
 $('almBtn').onclick=()=>{ac();openAlmanac();};
 $('resetBtn').onclick=()=>{if(confirm('确定重置全部冒险进度？')){SAVE={lv:0,unlocked:['peashooter'],done:{},seenP:{peashooter:1},seenZ:{},dave:{}};storeSave();refreshMenu();}};
 $('backBtn').onclick=()=>toMenu();
@@ -2978,9 +3004,9 @@ cv.addEventListener('pointerdown',e=>{
   if(Math.hypot(x-BTN_MUTE.x,y-BTN_MUTE.y)<BTN_MUTE.r+4){muted=!muted;return;}
   if(Math.hypot(x-BTN_PAUSE.x,y-BTN_PAUSE.y)<BTN_PAUSE.r+4){togglePause();return;}
   if(paused)return;
-  // 阳光(优先于种子栏, 阳光可能落在顶栏附近)
+  // 阳光(优先于种子栏, 阳光可能落在顶栏附近) — 点击立即到账, 飞行仅为动画
   for(let i=S.suns.length-1;i>=0;i--){const su=S.suns[i];
-    if(!su.fly&&Math.hypot(x-su.x,y-su.y)<42){su.fly=true;SFX.sunPick();return;}}
+    if(!su.fly&&Math.hypot(x-su.x,y-su.y)<42){su.fly=true;S.sun+=su.val;S.sunPulse=1;SFX.sunPick();return;}}
   if(y<90){
     for(let i=0;i<S.seed.length;i++){
       const px=112+i*70;
@@ -3018,15 +3044,15 @@ addEventListener('keydown',e=>{
   if(scene==='playing'&&S){
     if(key==='escape'){
       if(gmenuOpen)closeGameMenu(true);
+      else if(!$('dave').classList.contains('hidden'))$('daveOk').click();
       else if(S.sel||S.shovel){S.sel=null;S.shovel=false;}
       else openGameMenu();
     }
     if(key==='p'){if(gmenuOpen)closeGameMenu(true);else togglePause();}
-    if(key>='1'&&key<='9'&&!S.over&&!paused){
-      const k=S.seed[+key-1];
+    if((key>='1'&&key<='9')||key==='0'){
+      const k=S.seed[key==='0'?9:+key-1];
       if(k){const d=PD[k],cd=S.cds[k]||0;
-        if(S.sun>=d.cost&&cd<=0){S.sel=k;S.shovel=false;SFX.sel();}else SFX.deny();}
-    }
+        if(S.sun>=d.cost&&cd<=0){S.sel=k;S.shovel=false;SFX.sel();}else SFX.deny();}}
   }
   if(key==='m')muted=!muted;
   if(key==='r'&&scene==='playing'&&S.over)beginLevel();
@@ -3053,6 +3079,7 @@ requestAnimationFrame(t=>{last=t;requestAnimationFrame(loop);});
 window.__pvz={
   pump(n,dt){n=n||1;dt=dt||0.05;for(let i=0;i<n;i++){if(scene==='playing'&&!paused&&S)update(dt);}render();return this.s;},
   get dbg(){return {scene,paused,overT:S&&Math.round(S.overT*10)/10};},
+  get peas(){return S?S.peas.map(p=>({x:Math.round(p.x),y:Math.round(p.y),vx:p.vx,row:p.row,dmg:p.dmg})):null;},
   get graves(){return S?S.graves.map(g=>({r:g.r,c:g.c})):null;},
   get pd(){return Object.keys(PD).length;},
   get suns(){return S?S.suns.map(s=>({x:Math.round(s.x),y:Math.round(s.y),land:s.land,fly:s.fly,val:s.val})):null;},
