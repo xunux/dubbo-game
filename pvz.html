@@ -84,7 +84,8 @@
         <button id="resetBtn" class="minb">重置进度</button>
       </div>
       <div class="card" style="max-width:600px">
-        <b>操作：</b>点阳光收集 · 点种子包→点草坪种植 · 右键取消 · 1~9 快选 · P 暂停 · M 静音 · Esc/🏠 游戏菜单(退出/重开)。<br>
+        <b>融合</b>：把种子<b>直接种到植物上</b>即融合（或点 🔗/按 C 后点两株）！坚果+坚果=高坚果、豌豆+向日葵=豌葵花、双发+双发=机枪……任意组合生成新植物。<br>
+        <b>操作：</b>点阳光收集 · 点种子包→点草坪种植 · 右键取消 · 1~9快选 · P 暂停 · M 静音 · F 倍速 · Esc/🏠 游戏菜单(退出/重开)。<br>
         黑夜没有天降阳光，靠向日葵和蘑菇；泳池要先铺睡莲；浓雾用灯笼草照亮；屋顶必须先放花盆。
       </div>
     </div>
@@ -282,7 +283,119 @@ const NEWP=[
  {id:'sunbeam',n:'阳光豆',cost:50,cd:30,hp:9999,cat:'inst',arch:'boom',ap:{fuse:.5,sun:50},art:['bulb','#ffe070','#d8a820'],st:'立即获得50阳光',fl:'"应急小金库。"'},
 ];
 for(const v of NEWP){PD[v.id]={name:v.n,cost:v.cost,cd:v.cd,hp:v.hp,cat:v.cat||'atk',arch:v.arch,ap:v.ap||{},art:v.art,st:v.st,fl:v.fl,night:v.night,aquatic:v.aq,at:v.at,shell:v.shell,gr:v.gr,prot:v.prot,bite:v.bite,boomDeath:v.boomDeath};}
-// ---- 解锁顺序: 起始1种 + 每关4种(最后一关3种) = 100 ----
+// ---- 融合系统: 两株植物合体 ----
+const FUSION_SPECIAL={
+ 'peashooter+sunflower':{kind:'peasun',n:'豌葵花',art:['peasun'],st:'边射击边产阳光',fl:'"光合作用,火力全开!"'},
+ 'peashooter+wallnut':{kind:'nutpea',n:'豆坚果',art:['nutpea'],st:'2000血还能射击',fl:'"硬汉也会吐豌豆。"'},
+ 'sunflower+wallnut':{kind:'sunnut',n:'太阳果',art:['sunnut'],st:'厚血量持续产阳光',fl:'"行走的太阳能银行。"'},
+ 'peashooter+peashooter':{kind:'repeater'},            // 豌豆+豌豆=双发
+ 'repeater+repeater':{kind:'gatling'},                 // 双发+双发=机枪
+ 'sunflower+sunflower':{kind:'twinsunflower'},        // 向日葵×2=双子
+ 'wallnut+wallnut':{kind:'tallnut'},                  // 坚果×2=高坚果
+ 'peashooter+torchwood':{kind:'firepea'},             // 豌豆+火炬=火焰豌豆
+ 'cherry+peashooter':{kind:'cherrypea',n:'樱桃投手',art:['plt','#e8303a','#a81018',{}],st:'投掷爆炸樱桃(60+溅射)',fl:'"甜蜜的重击。"'},
+ 'cherry+wallnut':{kind:'nutboom',n:'爆裂坚果',art:['nut','#e05a3a','#a82018',{}],st:'被啃坏时猛烈爆炸',fl:'"别惹我,会炸。"'},
+};
+// 老30种植物的融合行为映射(修复: 融合体继承真实机制)
+const LEGACY_ARCH={
+ peashooter:['shooter',{dmg:20,rate:1.4}],
+ snowpea:['shooter',{dmg:20,rate:1.4,proj:'ice'}],
+ repeater:['shooter',{dmg:20,rate:1.4,n:2}],
+ cactus:['shooter',{dmg:20,rate:1.4,proj:'spike'}],
+ puff:['shooter',{dmg:20,rate:1.4,range:3}],
+ threepeater:['shooter',{dmg:20,rate:1.4,rows3:1}],
+ fume:['fume',{range:4,dmg:20}],
+ starfruit:['star',{rate:1.4}],
+ sunflower:['prod',{val:25,int:24}],
+ sunshroom:['prod',{val:15,int:18}],
+ cabbage:['lob',{dmg:40}],
+ kernel:['lob',{dmg:20,butter:1}],
+ melon:['lob',{dmg:80,splash:40}],
+ potato:['trap',{arm:14,dmg:1800,r:60}],
+ squash:['gsquash',{r:70,dmg:1800}],
+ cherry:['boom',{fuse:1.25,r:144,dmg:1800}],
+ jalapeno:['boom',{fuse:1,rows3:1,dmg:1200,fire:1}],
+ doom:['boom',{fuse:1.2,r:250,dmg:3000}],
+ blover:['boom',{fuse:.5,fogClr:1}],
+ spikeweed:['spikes',{dps:20}],
+ chomper:['melee',{dps:60,range:72}],
+};
+const TRAIT_SETS={
+ sun:['sunflower','sunshroom','twinsunflower','sunring','marigold','diamondflower','moonshroom'],
+ tank:['wallnut','tallnut','ironnut','durian','shieldgrass','waterhyacinth','garlic','pumpkin','bubbleshroom'],
+ ice:['snowpea','icespike','wintermelon','icecrystal'],
+ fire:['firepea','torchwood','volcanopepper','firespike','lavataro','jalapeno'],
+ pierce:['piercepea','shadowpea','plasma'],
+ poison:['poisonpea','poisonshroom','poisonfang','moldmelon'],
+ thorn:['spikeweed','spikerock','firespike','icespike','thornvine'],
+};
+function fusionTraits(b){
+  const t=[];
+  for(const k in TRAIT_SETS)if(TRAIT_SETS[k].includes(b))t.push(k);
+  if(!t.length)t.push('power');
+  return t;
+}
+function ensureFusionKind(a,b){
+  const key=[a,b].sort().join('+');
+  const sp=FUSION_SPECIAL[key];
+  if(sp&&PD[sp.kind]&&(!sp.n))return sp.kind; // 结果是已有植物: 直接得到它(坚果×2=高坚果)
+  const kind=sp?sp.kind:'fx_'+key;
+  if(PD[kind])return kind;
+  const A=PD[a],B=PD[b];
+  const la=LEGACY_ARCH[a]||[];
+  const traits=fusionTraits(b);
+  PD[kind]={name:sp?sp.n:A.name+'·'+B.name,cost:0,cd:0,hp:A.hp,cat:'atk',
+    arch:A.arch||la[0],ap:(A.ap&&Object.keys(A.ap).length)?{...A.ap}:{...(la[1]||{})},
+    art:sp?sp.art:['fusion',a,b],
+    st:'融合: '+A.st+' ＋ '+B.st,fl:'"1+1>2!"',fused:true,fuA:a,fuB:b,night:0,aquatic:0};
+  const d=PD[kind];
+  for(const t of traits){
+    if(t==='tank'){d.hp=Math.round(d.hp*3);}
+    if(t==='fire'&&d.ap)d.ap.dmg=Math.round((d.ap.dmg||20)*1.5);
+    if(t==='power'&&d.ap)d.ap.dmg=Math.round((d.ap.dmg||20)*1.3);
+  }
+  d.fu={traits};
+  if(d.hp<(A.hp||300))d.hp=A.hp||300;
+  return kind;
+}
+function fuseFx(p){
+  SFX.fuse();
+  for(let i=0;i<16;i++)S.parts.push({x:p.cx+rand(-20,20),y:p.cy-rand(0,60),vx:rand(-90,90),vy:rand(-140,-30),g:250,life:rand(.4,.8),max:.8,r:rand(2,5),col:Math.random()<.5?'#ffe14d':'#fff'});
+  S.parts.push({ring:true,x:p.cx,y:p.cy-34,r:8,vr:220,life:.4,max:.4});
+}
+function fuseReplace(p,b){ // 在 p 的格子生成 a+b 融合体
+  const r=p.row,c=p.col;
+  const kind=ensureFusionKind(p.kind,b);
+  fuseFx(p);
+  p.rm=true;
+  if(waterRow(r)&&!baseAt(r,c))placePlant('lily',r,c,true);
+  if(LD.w.roof&&!baseAt(r,c))placePlant('pot',r,c,true);
+  const np=placePlant(kind,r,c,true);
+  if(np&&PD[kind].fu){
+    np.maxHp=PD[kind].hp;np.hp=np.maxHp;
+    np.fu=PD[kind].fu;
+    if(np.fu.traits.includes('sun'))np.timer=8;
+  }
+  return np;
+}
+function doFuse(pA,pB){ // 融合工具: 两株合一(位置=第一株)
+  pB.rm=true;leafBurst(pB);
+  fuseReplace(pA,pB.kind);
+}
+function fusionExtra(p,dt){ // 融合附加特性(产阳光/反踩)
+  const tr=p.fu&&p.fu.traits||[];
+  if(tr.includes('sun')){
+    p.timer=(p.timer===undefined?8:p.timer)-dt;
+    if(p.timer<=0){p.timer=24;
+      S.suns.push({x:p.cx+rand(-8,8),y:p.cy-46,ty:p.cy-rand(-4,10),vy:-110,land:false,life:11,val:25,fly:null,ph:rand(0,9),vx:rand(-22,22),g:300});}
+  }
+  if(tr.includes('thorn')){
+    p.cool2=(p.cool2||0)-dt;
+    if(p.cool2<=0){p.cool2=.7;
+      for(const z of S.zombies){if(z.dead||z.row!==p.row||z.under||z.fly||z.bun)continue;
+        if(Math.abs(z.x-p.cx)<CW*.55){hurt(z,10);}}}
+  }
+}
 const ORDER=['peashooter',
  'sunflower','wallnut','potato','cherry','snowpea','chomper','repeater','firepea','piercepea','splitpea','goldpea','royalpea','whirlpea','mint','ironnut','garlic','peanut','twinsunflower','marigold','durian',
  'puff','sunshroom','fume','gravebuster','doom','scaredy','hypno','iceshroom','magnet','phantom','poisonshroom','electroshroom','giantfume','moonshroom','bubbleshroom','shadowpea','crystalshroom','starvine','candyvine','shieldgrass',
@@ -358,7 +471,7 @@ loadSave();
 migrateSave();
 
 // ============================================================ 音频
-let AC=null,muted=false;
+let AC=null,muted=false,gameSpeed=1.5;
 function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(AC&&AC.state==='suspended')AC.resume();return AC;}
 function tone(f0,f1,dur,type,vol,delay=0){const a=ac();if(!a||muted)return;const t0=a.currentTime+delay;const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.setValueAtTime(f0,t0);o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t0+dur);g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(0.001,t0+dur);o.connect(g).connect(a.destination);o.start(t0);o.stop(t0+dur+0.02);}
 function noiseS(dur,vol,lp,delay=0){const a=ac();if(!a||muted)return;const t0=a.currentTime+delay;const n=Math.floor(a.sampleRate*dur);const buf=a.createBuffer(1,n,a.sampleRate);const d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);const s=a.createBufferSource();s.buffer=buf;const f=a.createBiquadFilter();f.type='lowpass';f.frequency.value=lp;const g=a.createGain();g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(0.001,t0+dur);s.connect(f).connect(g).connect(a.destination);s.start(t0);}
@@ -366,6 +479,7 @@ const SFX={
  sel:()=>tone(660,880,.06,'triangle',.16),deny:()=>tone(160,120,.12,'square',.1),
  plant:()=>{tone(300,150,.09,'square',.18);noiseS(.06,.1,1200);},dig:()=>{noiseS(.1,.18,800);tone(180,90,.1,'triangle',.15);},
  sunPick:()=>{tone(880,880,.07,'sine',.2);tone(1320,1320,.1,'sine',.18,.06);},
+ coin:()=>{tone(1320,1760,.08,'sine',.18);tone(1980,1980,.1,'sine',.14,.05);},
  pea:()=>tone(420,300,.05,'square',.08),hit:()=>{tone(200,90,.06,'triangle',.13);noiseS(.04,.06,2000);},
  freeze:()=>tone(1500,2200,.06,'sine',.09),eat:()=>noiseS(.07,.12,650),
  armorPop:()=>{tone(900,300,.12,'square',.12);noiseS(.08,.08,3000);},
@@ -373,6 +487,7 @@ const SFX={
  gulp:()=>tone(300,80,.2,'sine',.22),mower:()=>{tone(70,190,.4,'sawtooth',.22);noiseS(.4,.12,500);},
  groan:()=>tone(rand(85,110),rand(60,75),.55,'sawtooth',.06),die:()=>tone(140,60,.25,'sawtooth',.1),
  horde:()=>{tone(98,98,.5,'sawtooth',.18);tone(103,103,.5,'sawtooth',.18);},
+ fuse:()=>{tone(440,660,.1,'triangle',.2);tone(660,990,.12,'triangle',.18,.09);tone(990,1320,.16,'sine',.16,.18);},
  win:()=>{[523,659,784,1047].forEach((f,i)=>tone(f,f,.22,'triangle',.22,i*.14));},
  lose:()=>{[392,330,262,196].forEach((f,i)=>tone(f,f*.94,.3,'sawtooth',.2,i*.2));},
  smash:()=>{noiseS(.2,.3,300);tone(90,40,.25,'sine',.35);},
@@ -414,7 +529,7 @@ function reset(){
     cds:{},sel:null,shovel:false,mx:-99,my:-99,
     waveI:0,waves:LD.waves.map(x=>({...x})),spawnQ:[],made:0,
     banner:null,shake:0,skySunT:5,skyN:0,over:0,overT:0,endShown:false,kills:0,groanT:6,eatT:0,sunPulse:0,
-    fogClear:0,rowFlash:[0,0,0,0,0,0],seed:null,zones:[]};
+    fogClear:0,rowFlash:[0,0,0,0,0,0],seed:null,zones:[],fuseMode:false,fuze:null};
   S.flags=[];let cum=0;LD.waves.forEach(x=>{cum+=x.n;if(x.huge)S.flags.push(cum);});
   S.totalZ=cum;
   for(let r=0;r<LD.ROWS;r++)S.mowers.push({row:r,x:GX-30,on:false,gone:false,water:waterRow(r),roof:!!w.roof});
@@ -476,7 +591,7 @@ function spawnZombie(type,row){
   const z={type,row,x:W+rand(40,95),hp:d.hp,armor:d.armor,armorKind:d.ak||null,
     speed:d.speed*rand(.88,1.12),ph:rand(0,9),slow:0,rage:false,eat:false,biteT:.5,smash:0,dead:0,gone:false,flash:0,
     fly:!!d.balloon,under:!!d.digger,dirR:false,stun:0,pole:!!d.vault,threw:false,dive:!!d.snorkel,
-    vault:null,drop:0,def:d,small:!!d.small,garg:!!d.garg,cat:null,bun:null,bobPh:rand(0,9)};
+    vault:null,drop:0,def:d,small:!!d.small,garg:!!d.garg,cat:null,bun:null,bobPh:rand(0,9),armor0:d.armor};
   if(d.cat){z.cat={ph:'drive',x:GX+6.6*CW,t:0};z.speed=8;}
   if(d.bungee){ // 选目标: 优先有植物且未被伞叶保护的格子
     let tr=Math.floor(Math.random()*LD.ROWS),tc=2+Math.floor(Math.random()*6);
@@ -495,9 +610,20 @@ function armorPop(z){
 }
 function killZ(z){
   if(z.dead)return;z.dead=0.0001;z.eat=false;S.kills++;SFX.die();
+  dropCoins(z);
   if(z.fly||z.small)return;
   const by=rowBase(z.row);
   S.parts.push({x:z.x-4,y:by-96,vx:rand(-50,-10),vy:rand(-140,-90),g:380,life:.8,max:.8,r:9,col:'#a9b97e',head:true});
+}
+function dropCoins(z){ // 击杀掉落金币(收集折算阳光)
+  const by=rowBase(z.row);
+  let n=0;
+  if(z.garg)n=4+Math.floor(Math.random()*2);
+  else if((z.armor0||0)>=1000)n=Math.random()<.6?1:0;
+  else if(z.small)n=Math.random()<.15?1:0;
+  else n=Math.random()<.3?1:0;
+  for(let i=0;i<n;i++)
+    S.suns.push({x:z.x+rand(-14,14),y:by-60,ty:by-rand(0,8),vy:-rand(60,130),land:false,life:7,val:10,fly:null,ph:rand(0,9),vx:rand(-50,50),g:340,coin:true});
 }
 function hurt(z,d,opts){
   if(z.dead)return;
@@ -633,6 +759,12 @@ function fireX(p,ap,dir){
   else if(pr&&typeof pr==='object'&&pr.pois)pe.pois={dps:pr.pois,t:pr.pt};
   if(ap.kb)pe.kb=ap.kb;
   if(ap.heavy)pe.heavy=true;
+  if(p.fu){const tr=p.fu.traits;
+    if(tr.includes('ice'))pe.snow=true;
+    if(tr.includes('fire')&&!pe.fire){pe.fire=true;pe.dmg=Math.round(pe.dmg*1.5);}
+    if(tr.includes('poison')&&!pe.pois)pe.pois={dps:6,t:3};
+    if(tr.includes('pierce')&&!pe.pierce)pe.pierce=3;
+  }
   S.peas.push(pe);
   if(ap.rows3)for(const r of [p.row-1,p.row+1])if(r>=0&&r<LD.ROWS)S.peas.push({...pe,row:r});
   SFX.pea();p.rec=0.12;
@@ -670,7 +802,7 @@ function archUpd(p,dt){
         for(const z of S.zombies){if(z.dead||z.under||z.bun||z.row!==p.row||z.x<p.cx||z.x>W+40)continue;
           if(!best||z.x<best.x)best=z;}
         if(best){p.cool=2.4*(cheerNear(p)?.72:1);
-          S.lobs.push({x0:p.cx,y0:p.cy-LD.CH*.62,x1:best.x,y1:rowBase(best.row)-(best.fly?90:50),t:0,T:Math.max(.5,Math.abs(best.x-p.cx)/300+.4),row:best.row,dmg:ap.dmg,melon:!!ap.splash,splash:ap.splash||0,slow:ap.slow||0,pois:ap.pois?{dps:ap.pois,pt:ap.pt}:null,kind:p.kind});
+          S.lobs.push({x0:p.cx,y0:p.cy-LD.CH*.62,x1:best.x,y1:rowBase(best.row)-(best.fly?90:50),t:0,T:Math.max(.5,Math.abs(best.x-p.cx)/300+.4),row:best.row,dmg:ap.dmg,melon:!!ap.splash,splash:ap.splash||0,slow:ap.slow||0,butter:ap.butter?1:0,pois:ap.pois?{dps:ap.pois,pt:ap.pt}:null,kind:p.kind});
           p.rec=0.2;SFX.lob();
         }else p.cool=0.2;
       }
@@ -683,6 +815,7 @@ function archUpd(p,dt){
     case 'boom':{
       p.fuse=(p.fuse===undefined?ap.fuse:p.fuse)-dt;
       if(p.fuse<=0){p.rm=true;
+        if(ap.fogClr)S.fogClear=20;
         if(ap.sun){S.sun+=ap.sun;SFX.sunPick();
           for(let i=0;i<10;i++)S.parts.push({x:p.cx+rand(-20,20),y:p.cy-rand(10,60),vx:rand(-40,40),vy:rand(-120,-40),g:260,life:.6,max:.6,r:3,col:'#ffd84a'});}
         if(ap.all)for(const z of S.zombies){if(z.dead||z.bun&&false)continue;
@@ -808,6 +941,7 @@ function updPlants(dt){
     p.age+=dt;p.hitT=Math.max(0,p.hitT-dt);p.rec=Math.max(0,(p.rec||0)-dt);
     if(p.age>0.25&&p.hp<=0){p.rm=true;leafBurst(p);continue;}
     const w=LD.w;
+    if(PD[p.kind].fused){archUpd(p,dt);fusionExtra(p,dt);continue;}
     if(PD[p.kind].arch){archUpd(p,dt);continue;}
     switch(p.kind){
       case 'sunflower':case 'sunshroom':{
@@ -1259,9 +1393,73 @@ function bakeWorlds(){
 // ============================================================ 植物绘制
 let drawScale=1;
 // ============================================================ 扩展植物画法
+const EMBLEMS={};
+function emblem(b){
+  if(!EMBLEMS[b]){const img=new Image();img.src=iconURL(b);EMBLEMS[b]=img;}
+  return EMBLEMS[b];
+}
 function drawNewArt(k,p,t,hpR){
   const A=PD[k].art,c1=A[1],c2=A[2],o=A[3]||{};
   switch(A[0]){
+    case 'fusion':{ // 拼装式融合: 主植物 + 副植物家族部件(花环/蘑菇帽/碗座/冰晶/火焰/刺臂/徽章)
+      const a=A[1],b=A[2];
+      drawPlantArt(a,{ph:p.ph||0,hp:1,maxHp:1,age:1,armed:false,fuse:99,chew:0,shell:0,grow:0});
+      const ba=PD[b].art,c1b=ba?ba[1]:'#ffd23e',c2b=ba?ba[2]:'#c89012';
+      const MUSHR=['puff','sunshroom','fume','gravebuster','doom','scaredy','hypno','iceshroom','magnet','phantom','poisonshroom','electroshroom','giantfume','moonshroom','bubbleshroom','crystalshroom'];
+      if(TRAIT_SETS.sun.includes(b)){
+        for(let i=0;i<10;i++){ctx.save();ctx.translate(0,-46);ctx.rotate(i/10*TAU+t*.12);
+          ctx.fillStyle=i%2?'#ffd23e':'#ffc312';ctx.beginPath();ctx.ellipse(20,0,9.5,4.5,0,0,TAU);ctx.fill();ctx.restore();}
+      }else if(MUSHR.includes(b)){
+        ctx.save();ctx.translate(0,-64);
+        const g=ctx.createRadialGradient(-4,-4,2,0,0,15);g.addColorStop(0,c1b);g.addColorStop(1,c2b);
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,15,Math.PI,0);ctx.quadraticCurveTo(15,8,0,8);ctx.quadraticCurveTo(-15,8,-15,0);ctx.fill();
+        ctx.restore();
+      }else if(TRAIT_SETS.tank.includes(b)){
+        ctx.save();
+        const g=ctx.createLinearGradient(-24,-26,24,0);g.addColorStop(0,c1b);g.addColorStop(1,c2b);
+        ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,-16,25,16,0,0,Math.PI);ctx.closePath();ctx.fill();
+        ctx.fillStyle='rgba(60,30,5,.5)';ctx.beginPath();ctx.ellipse(0,-16,19,4,0,0,TAU);ctx.fill();
+        ctx.restore();
+      }else if(TRAIT_SETS.ice.includes(b)){
+        ctx.fillStyle='rgba(200,240,255,.95)';
+        [[-10,-62,5],[0,-70,6],[9,-60,4]].forEach(([x,y,s])=>{ctx.beginPath();ctx.moveTo(x-s,y);ctx.lineTo(x,y-s*1.6);ctx.lineTo(x+s,y);ctx.closePath();ctx.fill();});
+      }else if(TRAIT_SETS.fire.includes(b)){
+        const fh=10+Math.sin(t*9)*3;
+        const g=ctx.createRadialGradient(0,-66-fh/2,2,0,-64,14);g.addColorStop(0,'#fff3a0');g.addColorStop(.5,'#ffb02e');g.addColorStop(1,'rgba(255,90,20,0)');
+        ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,-66-fh/2,8,fh,0,0,TAU);ctx.fill();
+      }else if(['cactus','doublecactus'].includes(b)){
+        ctx.fillStyle='#5aa832';
+        for(const s of [-1,1]){ctx.save();ctx.translate(s*20,-34);ctx.rotate(s*.4);rr(-3,-12,6,16,3);ctx.fill();ctx.restore();}
+      }else{
+        const img=emblem(b);
+        ctx.save();ctx.translate(14,-76);
+        ctx.fillStyle='rgba(255,252,240,.92)';ctx.beginPath();ctx.arc(0,0,12,0,TAU);ctx.fill();
+        ctx.strokeStyle='#c89012';ctx.lineWidth=2;ctx.stroke();
+        if(img.complete&&img.naturalWidth)ctx.drawImage(img,-9,-9,18,18);
+        ctx.restore();
+      }
+      break;}
+    case 'peasun':{ // 豌葵花
+      ctx.save();
+      ctx.strokeStyle='#3e8b22';ctx.lineWidth=7;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(0,0);ctx.quadraticCurveTo(3,-20,0,-34);ctx.stroke();
+      leaf(-4,-6,-0.9,'#4aa027');leaf(4,-3,0.8,'#3e8b22');
+      const bob=Math.sin(t*2.2)*1.6;ctx.translate(0,-34+bob);
+      for(let i=0;i<12;i++){ctx.save();ctx.rotate(i/12*TAU+t*.15);ctx.fillStyle=i%2?'#ffd23e':'#ffc312';ctx.beginPath();ctx.ellipse(19,0,9.5,5,0,0,TAU);ctx.fill();ctx.restore();}
+      const g=ctx.createRadialGradient(-3,-4,2,0,0,12);g.addColorStop(0,'#b07a34');g.addColorStop(1,'#8a5a20');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,12,0,TAU);ctx.fill();
+      drawShooterHead('#5db83a','#4aa027',t,false,false,p.rec||0);
+      ctx.restore();break;}
+    case 'nutpea':{ // 豆坚果
+      drawWallnut(p,1,t,1);
+      ctx.save();ctx.translate(15,-36);
+      ctx.fillStyle='#4aa027';rr(0,-7,20,14,6);ctx.fill();
+      ctx.fillStyle='#1c3a10';ctx.beginPath();ctx.ellipse(19,0,3.4,5,0,0,TAU);ctx.fill();
+      ctx.restore();break;}
+    case 'sunnut':{ // 太阳果
+      drawWallnut(p,1,t,1);
+      for(let i=0;i<10;i++){ctx.save();ctx.translate(0,-40);ctx.rotate(i/10*TAU+t*.1);ctx.fillStyle=i%2?'#ffd23e':'#ffc312';ctx.beginPath();ctx.ellipse(27,0,10,5,0,0,TAU);ctx.fill();ctx.restore();}
+      break;}
     case 'shx':drawShooterX(c1,c2,o,p,t);break;
     case 'mu':drawMushArt(c1,c2,o,p,t);break;
     case 'fl':drawFlowerArt(c1,c2,o,p,t);break;
@@ -1665,22 +1863,32 @@ function drawBubbleOverlay(p,t){
   ctx.fillStyle='rgba(255,255,255,.75)';ctx.beginPath();ctx.arc(-12,-48,5,0,TAU);ctx.fill();
   ctx.restore();
 }
-// ============================================================ 3D 体积光影渲染管线
-const SHADE_A=document.createElement('canvas'),SHADE_B=document.createElement('canvas');
-SHADE_A.width=SHADE_B.width=280;SHADE_A.height=SHADE_B.height=340;
-function renderShaded(drawFn,sx,sy,sc,alpha,noShadow){
-  const heavy=S&&((S.zombies.length||0)+(S.plants.length||0))>90; // 实体过多时降级保帧率
-  const a=SHADE_A.getContext('2d'),b=SHADE_B.getContext('2d');
+// ============================================================ 3D 体积光影渲染管线(带精灵缓存)
+const SHADE_A=document.createElement('canvas'),SHADE_B=document.createElement('canvas'),SPR_C=document.createElement('canvas'),SPR_D=document.createElement('canvas');
+SHADE_A.width=SHADE_B.width=SPR_C.width=280;SHADE_A.height=SHADE_B.height=SPR_C.height=340;
+SPR_D.width=170;SPR_D.height=76;
+{ // 预生成软影精灵(径向渐变, 替代逐帧 blur 滤镜)
+  const d=SPR_D.getContext('2d');
+  const g=d.createRadialGradient(85,38,4,85,38,80);
+  g.addColorStop(0,'rgba(10,8,6,.42)');g.addColorStop(.6,'rgba(10,8,6,.22)');g.addColorStop(1,'rgba(10,8,6,0)');
+  d.fillStyle=g;d.beginPath();d.ellipse(85,38,82,30,0,0,TAU);d.fill();
+}
+const SPRCACHE={};
+function softShadow(sx,sy,sc,alpha){
+  ctx.save();ctx.translate(sx,sy+4);ctx.scale(sc*.6,sc*.48);ctx.globalAlpha=(alpha===undefined?1:alpha)*.85;
+  ctx.drawImage(SPR_D,-85,-14);
+  ctx.restore();
+}
+function buildSprite(drawFn){ // 烘焙: 完整光影 + alpha掩膜 → 缓存 (body 存入 SPR_C)
+  const a=SHADE_A.getContext('2d'),b=SHADE_B.getContext('2d'),c2=SPR_C.getContext('2d');
   a.setTransform(1,0,0,1,0,0);a.clearRect(0,0,280,340);
   const old=ctx;ctx=a;
   a.save();a.translate(140,300);
   try{drawFn();}finally{a.restore();ctx=old;}
-  // 剪影(用于投影与alpha掩膜)
   b.setTransform(1,0,0,1,0,0);b.clearRect(0,0,280,340);
   b.globalCompositeOperation='source-over';b.drawImage(SHADE_A,0,0);
   b.globalCompositeOperation='source-in';b.fillStyle='#000';b.fillRect(0,0,280,340);
   b.globalCompositeOperation='source-over';
-  // 体积光影: 左上主光 + 底部环境光衰减(轻压暗保饱和)
   a.save();
   a.globalCompositeOperation='multiply';
   let g=a.createLinearGradient(30,10,240,320);
@@ -1690,40 +1898,79 @@ function renderShaded(drawFn,sx,sy,sc,alpha,noShadow){
   g.addColorStop(0,'#ffffff');g.addColorStop(1,'#ded6d0');
   a.fillStyle=g;a.fillRect(0,0,280,340);
   a.globalCompositeOperation='screen';
-  if(!heavy){
   g=a.createRadialGradient(100,90,5,100,90,100);
   g.addColorStop(0,'rgba(255,250,238,.34)');g.addColorStop(1,'rgba(255,250,238,0)');
   a.fillStyle=g;a.fillRect(0,0,280,340);
-  // 轻微提饱和(overlay 暖色)
   a.globalCompositeOperation='overlay';
   g=a.createLinearGradient(0,0,0,340);
   g.addColorStop(0,'rgba(255,244,228,.28)');g.addColorStop(1,'rgba(255,228,200,.10)');
   a.fillStyle=g;a.fillRect(0,0,280,340);
-  }
   a.globalCompositeOperation='destination-in';
   a.drawImage(SHADE_B,0,0);
   a.restore();
-  // 合成: 模糊投影 + 本体
-  ctx.save();
-  ctx.translate(sx,sy);
-  const s=sc===undefined?1:sc;
-  ctx.scale(s,s);
-  ctx.globalAlpha=alpha===undefined?1:alpha;
-  if(!noShadow&&!heavy){
-    ctx.save();
-    ctx.globalAlpha=Math.min(ctx.globalAlpha,.32)*(alpha===undefined?1:1);
-    ctx.filter='blur(3px)';
-    ctx.transform(1,0,-.3,.26,12,7);
-    ctx.drawImage(SHADE_B,-140,-300);
+  c2.setTransform(1,0,0,1,0,0);c2.clearRect(0,0,280,340);
+  c2.drawImage(SHADE_A,0,0);
+  const out=document.createElement('canvas');out.width=280;out.height=340;
+  out.getContext('2d').drawImage(SPR_C,0,0);
+  return out;
+}
+function renderShaded(drawFn,sx,sy,sc,alpha,noShadow,cacheKey){
+  const s=sc===undefined?1:sc,al=alpha===undefined?1:alpha;
+  // 1) 缓存命中: 一次贴图搞定
+  let spr=cacheKey&&SPRCACHE[cacheKey];
+  if(spr){
+    ctx.save();ctx.translate(sx,sy);ctx.scale(s,s);ctx.globalAlpha=al;
+    ctx.drawImage(spr,-140,-300);
     ctx.restore();
+    if(!noShadow)softShadow(sx,sy,s,al);
+    return;
   }
+  // 2) 可缓存实体: 烘焙完整精灵后缓存
+  if(cacheKey){
+    if(Object.keys(SPRCACHE).length>520){for(const k in SPRCACHE)delete SPRCACHE[k];}
+    spr=SPRCACHE[cacheKey]=buildSprite(drawFn);
+    ctx.save();ctx.translate(sx,sy);ctx.scale(s,s);ctx.globalAlpha=al;
+    ctx.drawImage(spr,-140,-300);
+    ctx.restore();
+    if(!noShadow)softShadow(sx,sy,s,al);
+    return;
+  }
+  // 3) 直播路径(僵尸等高频动画): 轻量光影, 无滤镜
+  const a=SHADE_A.getContext('2d'),b=SHADE_B.getContext('2d');
+  a.setTransform(1,0,0,1,0,0);a.clearRect(0,0,280,340);
+  const old=ctx;ctx=a;
+  a.save();a.translate(140,300);
+  try{drawFn();}finally{a.restore();ctx=old;}
+  b.setTransform(1,0,0,1,0,0);b.clearRect(0,0,280,340);
+  b.globalCompositeOperation='source-over';b.drawImage(SHADE_A,0,0);
+  b.globalCompositeOperation='source-in';b.fillStyle='#000';b.fillRect(0,0,280,340);
+  b.globalCompositeOperation='source-over';
+  a.save();
+  a.globalCompositeOperation='multiply';
+  const g=a.createLinearGradient(30,10,240,320);
+  g.addColorStop(0,'#ffffff');g.addColorStop(.55,'#eee9e4');g.addColorStop(1,'#a89f9a');
+  a.fillStyle=g;a.fillRect(0,0,280,340);
+  a.globalCompositeOperation='destination-in';
+  a.drawImage(SHADE_B,0,0);
+  a.restore();
+  if(!noShadow)softShadow(sx,sy,s,al);
+  ctx.save();ctx.translate(sx,sy);ctx.scale(s,s);ctx.globalAlpha=al;
   ctx.drawImage(SHADE_A,-140,-300);
   ctx.restore();
 }
 function drawPlantAt(kind,x,y,s,st){
   st=st||{};
   const old=drawScale;drawScale=s;
-  renderShaded(()=>{ctx.scale(s,s);drawPlantArt(kind,st);},x,y,1,st.alpha);
+  let ck=null;
+  if(!st.sq&&!st.rolling){ // 静态可缓存: 5fps帧量化 + 关键状态
+    ck=kind+'|'+Math.floor(visT*5)+
+      '|'+(st.armed?1:0)+(st.chew>0?1:0)+((st.rec||0)>0.03?1:0)+
+      '|'+(st.shell>0?(st.shellKind||'p'):'')+
+      '|'+(st.maxHp?(st.hp<=st.maxHp/3?2:(st.hp<=st.maxHp*2/3?1:0)):0)+
+      '|'+(st.fuse!==undefined&&st.fuse<90?Math.min(2,Math.ceil(st.fuse)):9)+
+      '|'+(st.grow!==undefined&&st.grow>0?'g':'');
+  }
+  renderShaded(()=>{ctx.scale(s,s);drawPlantArt(kind,st);},x,y,1,st.alpha,undefined,ck);
   drawScale=old;
 }
 function drawPlantArt(k,p){
@@ -2501,6 +2748,18 @@ function drawMower(m){
   ctx.fillStyle='#777';ctx.beginPath();ctx.arc(-9,-3,2.4,0,TAU);ctx.arc(4,-3,2.4,0,TAU);ctx.fill();
   ctx.restore();
 }
+function drawCoin(x,y,ph,scale){
+  const t=visT*3+(ph||0);
+  const w=Math.abs(Math.cos(t))*.7+.3; // 立体旋转
+  ctx.save();ctx.translate(x,y);ctx.scale(w*(scale||1),(scale||1));
+  const g=ctx.createRadialGradient(-2,-2,1,0,0,9);
+  g.addColorStop(0,'#ffe98a');g.addColorStop(.7,'#f5c419');g.addColorStop(1,'#c89012');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,8.5,0,TAU);ctx.fill();
+  ctx.strokeStyle='#a87a08';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.fillStyle='#a87a08';ctx.font='bold 9px sans-serif';ctx.textAlign='center';ctx.fillText('¥',0,3);
+  ctx.restore();
+  if(Math.sin(t*1.7)>0.9){ctx.fillStyle='rgba(255,255,255,.95)';ctx.beginPath();ctx.arc(x+5,y-6,1.6,0,TAU);ctx.fill();}
+}
 function drawSunIcon(x,y,r,rot){
   ctx.save();ctx.translate(x,y);ctx.rotate(rot);
   const g=ctx.createRadialGradient(0,0,r*.2,0,0,r*2);
@@ -2527,12 +2786,13 @@ function drawShovelIcon(x,y,s){
 
 // ============================================================ UI
 const SHOV={x:0,y:6,w:60,h:80};
-const BTN_MENU={x:898,y:26,r:17},BTN_MUTE={x:936,y:26,r:17},BTN_PAUSE={x:972,y:26,r:17};
+const BTN_SPEED={x:860,y:26,r:17},BTN_MENU={x:898,y:26,r:17},BTN_MUTE={x:936,y:26,r:17},BTN_PAUSE={x:972,y:26,r:17};
 function seedBarRects(){
   const arr=[];let x=112;const n=S.seed?S.seed.length:0;
   for(let i=0;i<n;i++){arr.push({k:S.seed[i],x});x+=70;}
-  SHOV.x=x;return arr;
+  FUZ.x=x;SHOV.x=x+66;return arr;
 }
+const FUZ={x:0,y:6,w:60,h:80};
 function drawUI(){
   ctx.save();
   ctx.fillStyle='#f7ecd2';rr(10,6,96,80,10);ctx.fill();
@@ -2559,12 +2819,24 @@ function drawUI(){
     ctx.fillStyle='rgba(90,58,22,.9)';ctx.font='bold 11px "Microsoft YaHei"';ctx.fillText(i+1,9,14);
     ctx.restore();
   }
+  // 融合槽
+  ctx.save();ctx.translate(FUZ.x,FUZ.y);
+  if(S.fuseMode){ctx.shadowColor='#ffe14d';ctx.shadowBlur=14;}
+  ctx.fillStyle='#e9cb92';rr(0,0,60,80,9);ctx.fill();ctx.shadowBlur=0;
+  ctx.strokeStyle=S.fuseMode?'#ffe14d':'#7a4f21';ctx.lineWidth=S.fuseMode?4:3;rr(0,0,60,80,9);ctx.stroke();
+  ctx.font='22px sans-serif';ctx.textAlign='center';ctx.fillText('🔗',30,46);
+  ctx.font='bold 10px "Microsoft YaHei"';ctx.fillStyle='#5a3a16';ctx.fillText('融合',30,72);
+  ctx.restore();
   ctx.save();ctx.translate(SHOV.x,SHOV.y);
   if(S.shovel){ctx.shadowColor='#ffe14d';ctx.shadowBlur=14;}
   ctx.fillStyle='#e9cb92';rr(0,0,60,80,9);ctx.fill();ctx.shadowBlur=0;
   ctx.strokeStyle=S.shovel?'#ffe14d':'#7a4f21';ctx.lineWidth=S.shovel?4:3;rr(0,0,60,80,9);ctx.stroke();
   drawShovelIcon(30,38,1.15);
   ctx.restore();
+  ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.arc(BTN_SPEED.x,BTN_SPEED.y,BTN_SPEED.r,0,TAU);ctx.fill();
+  ctx.strokeStyle=gameSpeed>1?'#ffe14d':'rgba(255,255,255,.5)';ctx.lineWidth=gameSpeed>1?2.5:2;ctx.stroke();
+  ctx.font='bold 11px "Microsoft YaHei"';ctx.textAlign='center';ctx.fillStyle=gameSpeed>1?'#ffe14d':'#fff';
+  ctx.fillText(gameSpeed+'x',BTN_SPEED.x,BTN_SPEED.y+4);
   for(const[b,g]of[[BTN_MENU,'🏠'],[BTN_MUTE,muted?'🔇':'🔊'],[BTN_PAUSE,paused?'▶':'⏸']]){
     ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,TAU);ctx.fill();
     ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=2;ctx.stroke();
@@ -2713,6 +2985,13 @@ function drawWorld(){
     ctx.fillStyle='rgba(255,80,60,.22)';rr(GX+cell.c*CW+3,GY+cell.r*LD.CH+3,CW-6,LD.CH-6,10);ctx.fill();
     drawShovelIcon(S.mx,S.my-20,1.2);
   }
+  // 融合选中高亮
+  if(S.fuze){
+    ctx.strokeStyle=`rgba(255,225,77,${.55+Math.sin(visT*8)*.3})`;ctx.lineWidth=4;
+    rr(GX+S.fuze.col*CW+4,GY+S.fuze.row*LD.CH+4,CW-8,LD.CH-8,12);ctx.stroke();
+    ctx.fillStyle='#ffe14d';ctx.font='bold 13px "Microsoft YaHei"';ctx.textAlign='center';
+    ctx.fillText('再点一株完成融合 →',GX+S.fuze.col*CW+CW/2,GY+S.fuze.row*LD.CH-6);
+  }
   for(let r=0;r<LD.ROWS;r++){
     const rs=rowScale(r);
     for(const p of S.plants)if(p.row===r&&p.base)drawPlantAt(p.kind,p.cx,p.cy,rs,p);
@@ -2763,21 +3042,23 @@ function drawWorld(){
   drawFog();
   for(const su of S.suns){
     if(su.fly)continue; // 飞行中的阳光在 UI 层之上绘制
-    const bl=su.land&&su.life<3?(Math.sin(visT*10)*.5+.5):1;
     ctx.save();ctx.beginPath();ctx.rect(0,92,W,H-92);ctx.clip(); // 辉光不得渗出顶栏
+    if(su.coin){drawCoin(su.x,su.y,su.ph);ctx.restore();continue;}
+    const bl=su.land&&su.life<3?(Math.sin(visT*10)*.5+.5):1;
     ctx.globalAlpha=bl;
     drawSunIcon(su.x,su.y,24,visT*.8+su.ph);
     ctx.globalAlpha=1;
     ctx.restore();
   }
 }
-function drawFlyingSuns(){ // 收集中的阳光: 顶层飞行, 越接近计数器越小越淡
+function drawFlyingSuns(){ // 收集中的阳光/金币: 顶层飞行, 越接近计数器越小越淡
   for(const su of S.suns){
     if(!su.fly)continue;
     const d=Math.hypot(52-su.x,40-su.y);
     const k=clamp(d/300,0,1);
     ctx.globalAlpha=.45+.55*k;
-    drawSunIcon(su.x,su.y,10+k*14,visT*.8+su.ph);
+    if(su.coin)drawCoin(su.x,su.y,su.ph,.6+k*.5);
+    else drawSunIcon(su.x,su.y,10+k*14,visT*.8+su.ph);
     ctx.globalAlpha=1;
   }
 }
@@ -2964,6 +3245,7 @@ function refreshAlm(){
   const grid=$('almGrid');grid.innerHTML='';
   const reg=almTab==='p'?PD:ZD;
   for(const k of Object.keys(reg)){
+    if(almTab==='p'&&PD[k].fused)continue; // 融合植物不入图鉴
     const seen=almTab==='p'?(SAVE.unlocked.includes(k)||SAVE.seenP[k]):SAVE.seenZ[k];
     const d=document.createElement('button');d.className='alm'+(seen?'':' lock');
     d.innerHTML=`<img src="${iconURL(k,almTab==='z')}">`;
@@ -3024,35 +3306,46 @@ $('gmQuit').onclick=()=>quitToLevels();
 // ============================================================ 输入
 function evPos(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};}
 cv.addEventListener('pointermove',e=>{if(!S)return;const p=evPos(e);S.mx=p.x;S.my=p.y;});
-cv.addEventListener('contextmenu',e=>{e.preventDefault();if(S){S.sel=null;S.shovel=false;}});
+cv.addEventListener('contextmenu',e=>{e.preventDefault();if(S){S.sel=null;S.shovel=false;S.fuseMode=false;S.fuze=null;}});
 cv.addEventListener('pointerdown',e=>{
   ac();
   if(scene!=='playing'||!S||S.over)return;
   if(e.button===2){S.sel=null;S.shovel=false;return;}
   const{x,y}=evPos(e);
+  if(Math.hypot(x-BTN_SPEED.x,y-BTN_SPEED.y)<BTN_SPEED.r+4){cycleSpeed();return;}
   if(Math.hypot(x-BTN_MENU.x,y-BTN_MENU.y)<BTN_MENU.r+4){openGameMenu();return;}
   if(Math.hypot(x-BTN_MUTE.x,y-BTN_MUTE.y)<BTN_MUTE.r+4){muted=!muted;return;}
   if(Math.hypot(x-BTN_PAUSE.x,y-BTN_PAUSE.y)<BTN_PAUSE.r+4){togglePause();return;}
   if(paused)return;
   // 阳光(优先于种子栏, 阳光可能落在顶栏附近) — 点击立即到账, 飞行仅为动画
   for(let i=S.suns.length-1;i>=0;i--){const su=S.suns[i];
-    if(!su.fly&&Math.hypot(x-su.x,y-su.y)<42){su.fly=true;S.sun+=su.val;S.sunPulse=1;SFX.sunPick();return;}}
+    if(!su.fly&&Math.hypot(x-su.x,y-su.y)<42){su.fly=true;S.sun+=su.val;S.sunPulse=1;su.coin?SFX.coin():SFX.sunPick();return;}}
   if(y<90){
     for(let i=0;i<S.seed.length;i++){
       const px=112+i*70;
       if(x>=px&&x<=px+64){
         const k=S.seed[i],d=PD[k],cd=S.cds[k]||0;
         if(S.sel===k){S.sel=null;return;}
-        if(S.sun>=d.cost&&cd<=0){S.sel=k;S.shovel=false;SFX.sel();}
+        if(S.sun>=d.cost&&cd<=0){S.sel=k;S.shovel=false;S.fuseMode=false;S.fuze=null;SFX.sel();}
         else SFX.deny();
         return;
       }
     }
-    if(x>=SHOV.x&&x<=SHOV.x+SHOV.w){S.shovel=!S.shovel;S.sel=null;SFX.sel();return;}
+    if(x>=FUZ.x&&x<=FUZ.x+FUZ.w){S.fuseMode=!S.fuseMode;S.shovel=false;S.sel=null;S.fuze=null;SFX.sel();return;}
+    if(x>=SHOV.x&&x<=SHOV.x+SHOV.w){S.shovel=!S.shovel;S.sel=null;S.fuseMode=false;S.fuze=null;SFX.sel();return;}
     return;
   }
   const cell=cellAtVis(x,y);
   if(cell){
+    if(S.fuseMode){ // 融合: 两段式点击
+      const p=plantAt(cell.r,cell.c);
+      if(p&&!p.base&&!PD[p.kind].fused){
+        if(!S.fuze){S.fuze=p;SFX.sel();}
+        else if(S.fuze!==p){doFuse(S.fuze,p);S.fuze=null;}
+        else S.fuze=null;
+      }else SFX.deny();
+      return;
+    }
     if(S.shovel){
       const p=plantAt(cell.r,cell.c)||baseAt(cell.r,cell.c);
       if(p){
@@ -3067,6 +3360,16 @@ cv.addEventListener('pointerdown',e=>{
     }
     if(S.sel){
       const k=S.sel,v=canPlace(k,cell.r,cell.c);
+      // 融合版核心: 把种子直接种到植物上 = 融合!
+      const target=plantAt(cell.r,cell.c);
+      if(v==='occ'&&target&&!target.base&&!PD[target.kind].fused){
+        const d=PD[k];
+        if(S.sun>=d.cost&&(S.cds[k]||0)<=0){
+          S.sun-=d.cost;S.cds[k]=d.cd;
+          fuseReplace(target,k);S.sel=null;
+        }else SFX.deny();
+        return;
+      }
       if(v==='ok'){
         if(PD[k].at){attachShell(cell.r,cell.c,k);}
         else{placePlant(k,cell.r,cell.c,false);}
@@ -3081,10 +3384,12 @@ addEventListener('keydown',e=>{
     if(key==='escape'){
       if(gmenuOpen)closeGameMenu(true);
       else if(!$('dave').classList.contains('hidden'))$('daveOk').click();
-      else if(S.sel||S.shovel){S.sel=null;S.shovel=false;}
+      else if(S.sel||S.shovel||S.fuseMode){S.sel=null;S.shovel=false;S.fuseMode=false;S.fuze=null;}
       else openGameMenu();
     }
     if(key==='p'){if(gmenuOpen)closeGameMenu(true);else togglePause();}
+    if(key==='f')cycleSpeed();
+    if(key==='c'&&!S.over){S.fuseMode=!S.fuseMode;S.shovel=false;S.sel=null;S.fuze=null;SFX.sel();}
     if((key>='1'&&key<='9')||key==='0'){
       const k=S.seed[key==='0'?9:+key-1];
       if(k){const d=PD[k],cd=S.cds[k]||0;
@@ -3094,6 +3399,7 @@ addEventListener('keydown',e=>{
   if(key==='r'&&scene==='playing'&&S.over)beginLevel();
 });
 function togglePause(){if(!S||S.over)return;paused=!paused;bgm.on=!paused;$('pauseTip').classList.toggle('hidden',!paused);}
+function cycleSpeed(){gameSpeed=gameSpeed===1?1.5:(gameSpeed===1.5?2:1);SFX.sel();}
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&scene==='playing'&&!paused&&!S.over)togglePause();});
 
 // ============================================================ 主循环与测试钩子
@@ -3103,7 +3409,7 @@ function loop(ts){
   const dt=Math.min((ts-last)/1000,0.05);last=ts;
   visT+=dt;
   try{
-    if(scene==='playing'&&!paused&&S&&$('dave').classList.contains('hidden'))update(dt);
+    if(scene==='playing'&&!paused&&S&&$('dave').classList.contains('hidden'))update(dt*gameSpeed);
     render();
   }catch(err){
     if(window.__errs)window.__errs.push('loop: '+String(err&&err.message||err));
@@ -3113,13 +3419,14 @@ function loop(ts){
 }
 requestAnimationFrame(t=>{last=t;requestAnimationFrame(loop);});
 window.__pvz={
-  ver:'v4-fix-plant-pumpkin',
+  ver:'v6-fusion-mod',
   pump(n,dt){n=n||1;dt=dt||0.05;for(let i=0;i<n;i++){if(scene==='playing'&&!paused&&S)update(dt);}render();return this.s;},
   get dbg(){return {scene,paused,overT:S&&Math.round(S.overT*10)/10,sel:S&&S.sel,shovel:S&&S.shovel,plants:S&&S.plants.map(p=>p.kind+'@'+p.row+','+p.col+(p.shell?'[壳'+p.shell+']':''))};},
   get peas(){return S?S.peas.map(p=>({x:Math.round(p.x),y:Math.round(p.y),vx:p.vx,row:p.row,dmg:p.dmg})):null;},
   get graves(){return S?S.graves.map(g=>({r:g.r,c:g.c})):null;},
+  get spd(){return gameSpeed;},
   get pd(){return Object.keys(PD).length;},
-  get suns(){return S?S.suns.map(s=>({x:Math.round(s.x),y:Math.round(s.y),land:s.land,fly:s.fly,val:s.val})):null;},
+  get suns(){return S?S.suns.map(s=>({x:Math.round(s.x),y:Math.round(s.y),land:s.land,fly:s.fly,val:s.val,coin:!!s.coin})):null;},
   get s(){return S?{t:Math.round(S.t),sun:S.sun,plants:S.plants.length,z:S.zombies.length,wave:S.waveI+'/'+S.waves.length,over:S.over,lv:LD.idx}:null;},
   get save(){return JSON.parse(JSON.stringify(SAVE));},
   give(n){if(S)S.sun+=n;},
