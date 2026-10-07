@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>小游戏合集</title>
+<link rel="icon" href="data:,">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;font-family:"Microsoft YaHei","PingFang SC",sans-serif;-webkit-user-select:none;user-select:none}
+  body{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;padding:40px 16px;
+    background:radial-gradient(circle at 50% 20%,#2a5a24 0%,#1c3a1c 55%,#0c1a0e 100%);position:relative;overflow-x:hidden}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(105deg,transparent 0 90px,rgba(255,255,255,.028) 90px 92px)}
+  h1{margin:0;font-size:42px;color:#ffe14d;-webkit-text-stroke:2px #4a2c07;text-shadow:0 4px 0 #4a2c07,0 10px 24px rgba(0,0,0,.55);letter-spacing:10px}
+  .sub{margin:-18px 0 6px;color:#d8f5c6;font-size:15px;text-shadow:0 2px 3px rgba(0,0,0,.5);letter-spacing:2px}
+  .grid{display:flex;gap:30px;flex-wrap:wrap;justify-content:center;max-width:960px}
+  a.card{display:flex;flex-direction:column;align-items:center;gap:12px;width:340px;padding:24px 22px 20px;border-radius:20px;
+    text-decoration:none;cursor:pointer;position:relative;overflow:hidden;
+    background:linear-gradient(180deg,rgba(255,249,226,.97),rgba(238,226,192,.97));
+    border:4px solid #8a5a2a;box-shadow:0 8px 0 #5a3a16,0 18px 36px rgba(0,0,0,.45);
+    transition:transform .15s ease,box-shadow .15s ease}
+  a.card:hover{transform:translateY(-6px);box-shadow:0 14px 0 #5a3a16,0 26px 46px rgba(0,0,0,.5)}
+  a.card:active{transform:translateY(2px);box-shadow:0 4px 0 #5a3a16,0 10px 20px rgba(0,0,0,.45)}
+  .card canvas{width:118px;height:118px}
+  .card .name{font-size:23px;font-weight:900;color:#4a2c07;letter-spacing:3px}
+  .card .desc{font-size:13px;color:#6a5230;line-height:1.65;text-align:center}
+  .card .tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+  .card .tags span{font-size:11px;color:#fff;background:#55a326;border-radius:999px;padding:3px 10px;letter-spacing:1px}
+  .card .play{margin-top:2px;font-size:15px;font-weight:700;color:#fff;letter-spacing:4px;
+    background:linear-gradient(#9ade54,#55a326);border:2px solid #2c6a14;border-radius:12px;padding:9px 40px;
+    box-shadow:0 4px 0 #2c6a14}
+  footer{color:rgba(255,255,255,.5);font-size:12px;letter-spacing:1px}
+  @media (max-width:760px){h1{font-size:30px;letter-spacing:6px}.grid{gap:22px}a.card{width:min(86vw,340px)}}
+</style>
+</head>
+<body>
+  <h1>小 游 戏 合 集</h1>
+  <p class="sub">纯前端单文件打造 · 点击开玩 · 进度自动保存在浏览器</p>
+  <div class="grid">
+    <a class="card" href="pvz.html">
+      <canvas id="ic-pvz" width="236" height="236"></canvas>
+      <div class="name">植物大战僵尸</div>
+      <div class="desc">冒险模式 100 关 × 5 大世界 × 100 种植物<br>融合系统 · 金币掉落 · 3D 体积光影渲染</div>
+      <div class="tags"><span>塔防</span><span>100 关</span><span>融合</span><span>倍速</span></div>
+      <div class="play">▶ 开始游戏</div>
+    </a>
+    <a class="card" href="minecraft.html">
+      <canvas id="ic-mc" width="236" height="236"></canvas>
+      <div class="name">MiniCraft v3</div>
+      <div class="desc">体素沙盒生存 · 挖掘合成 · 昼夜与生物群系<br>多生物 · Boss 战 · 自适应画质</div>
+      <div class="tags"><span>沙盒</span><span>生存</span><span>合成</span><span>Boss</span></div>
+      <div class="play">▶ 开始游戏</div>
+    </a>
+  </div>
+  <footer>键盘 + 鼠标操作 · 建议使用 Chrome / Edge 浏览器 · 双击 html 文件可离线游玩</footer>
+<script>
+(function(){
+  // —— PvZ 图标: 豌豆射手 ——
+  const c1=document.getElementById('ic-pvz').getContext('2d');
+  c1.translate(118,126);
+  const sh=c1.createRadialGradient(-8,-58,4,0,-46,66);
+  sh.addColorStop(0,'rgba(0,0,0,.22)');sh.addColorStop(1,'rgba(0,0,0,0)');
+  c1.fillStyle=sh;c1.beginPath();c1.ellipse(0,2,58,16,0,0,7);c1.fill();
+  c1.strokeStyle='#3e8b22';c1.lineWidth=14;c1.lineCap='round';
+  c1.beginPath();c1.moveTo(0,4);c1.quadraticCurveTo(6,-40,0,-72);c1.stroke();
+  c1.fillStyle='#4aa027';
+  c1.save();c1.translate(-6,-10);c1.rotate(-.9);c1.beginPath();c1.ellipse(24,0,24,10,0,0,7);c1.fill();c1.restore();
+  c1.save();c1.translate(8,-6);c1.rotate(.7);c1.fillStyle='#3e8b22';c1.beginPath();c1.ellipse(22,0,22,9,0,0,7);c1.fill();c1.restore();
+  const g=c1.createRadialGradient(-16,-24,8,0,-12,44);
+  g.addColorStop(0,'#7ac84e');g.addColorStop(1,'#3f8a20');
+  c1.fillStyle=g;c1.beginPath();c1.arc(0,-88,40,0,7);c1.fill();
+  c1.fillStyle='#3f8a20';
+  c1.beginPath();
+  if(c1.roundRect){c1.roundRect(18,-106,50,34,16);}else{c1.rect(18,-106,50,34);}
+  c1.fill();
+  c1.fillStyle='#69b83e';c1.beginPath();c1.ellipse(40,-92,16,20,-.3,0,7);c1.fill();
+  c1.fillStyle='#1c3a10';c1.beginPath();c1.ellipse(66,-89,9,13,0,0,7);c1.fill();
+  c1.strokeStyle='#3e8b22';c1.lineWidth=6;
+  c1.beginPath();c1.moveTo(-10,-120);c1.quadraticCurveTo(-14,-136,-22,-140);c1.stroke();
+  c1.fillStyle='#fff';c1.beginPath();c1.ellipse(4,-96,10,11,0,0,7);c1.fill();
+  c1.fillStyle='#1a1a1a';c1.beginPath();c1.arc(7,-96,5,0,7);c1.fill();
+  // —— MC 图标: 等距草方块 ——
+  const c2=document.getElementById('ic-mc').getContext('2d');
+  c2.translate(118,116);
+  const face=(x,y,col)=>{c2.save();c2.translate(x,y);c2.transform(1,.5,-1,.5,0,0);
+    c2.fillStyle=col;c2.fillRect(0,0,66,66);
+    c2.strokeStyle='rgba(0,0,0,.18)';c2.lineWidth=2;c2.strokeRect(0,0,66,66);c2.restore();};
+  face(0,0,'#8a6a3a');      // 左·土
+  face(66,0,'#7a5a2e');     // 右·土(暗)
+  c2.save();c2.translate(0,-66);c2.transform(1,.5,1,-.5,0,0);
+  c2.fillStyle='#7ec850';c2.fillRect(0,0,66,66);
+  for(let i=0;i<26;i++){c2.fillStyle=i%2?'rgba(255,255,255,.10)':'rgba(20,60,10,.12)';
+    c2.fillRect(10+(i*37)%52,10+(i*53)%52,5,5);}
+  c2.strokeStyle='rgba(0,0,0,.18)';c2.lineWidth=2;c2.strokeRect(0,0,66,66);c2.restore();
+  c2.fillStyle='rgba(60,40,15,.35)';
+  for(let i=0;i<14;i++)c2.fillRect(10+(i*37)%110,8+(i*53)%46,4,4);
+})();
+</script>
+</body>
+</html>
