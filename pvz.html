@@ -285,16 +285,16 @@ const NEWP=[
 for(const v of NEWP){PD[v.id]={name:v.n,cost:v.cost,cd:v.cd,hp:v.hp,cat:v.cat||'atk',arch:v.arch,ap:v.ap||{},art:v.art,st:v.st,fl:v.fl,night:v.night,aquatic:v.aq,at:v.at,shell:v.shell,gr:v.gr,prot:v.prot,bite:v.bite,boomDeath:v.boomDeath};}
 // ---- 融合系统: 两株植物合体 ----
 const FUSION_SPECIAL={
- 'peashooter+sunflower':{kind:'peasun',n:'豌葵花',art:['peasun'],st:'边射击边产阳光',fl:'"光合作用,火力全开!"'},
- 'peashooter+wallnut':{kind:'nutpea',n:'豆坚果',art:['nutpea'],st:'2000血还能射击',fl:'"硬汉也会吐豌豆。"'},
- 'sunflower+wallnut':{kind:'sunnut',n:'太阳果',art:['sunnut'],st:'厚血量持续产阳光',fl:'"行走的太阳能银行。"'},
+ 'peashooter+sunflower':{kind:'peasun',n:'豌葵花',art:['peasun'],spec:{arch:'shooter',ap:{dmg:20,rate:1.4},hp:300,traits:['sun']},st:'边射击边产阳光',fl:'"光合作用,火力全开!"'},
+ 'peashooter+wallnut':{kind:'nutpea',n:'豆坚果',art:['nutpea'],spec:{arch:'shooter',ap:{dmg:20,rate:1.4},hp:2000,traits:[]},st:'2000血还能射击',fl:'"硬汉也会吐豌豆。"'},
+ 'sunflower+wallnut':{kind:'sunnut',n:'太阳果',art:['sunnut'],spec:{arch:'prod',ap:{val:25,int:24},hp:3000,traits:[]},st:'厚血量持续产阳光',fl:'"行走的太阳能银行。"'},
  'peashooter+peashooter':{kind:'repeater'},            // 豌豆+豌豆=双发
  'repeater+repeater':{kind:'gatling'},                 // 双发+双发=机枪
  'sunflower+sunflower':{kind:'twinsunflower'},        // 向日葵×2=双子
  'wallnut+wallnut':{kind:'tallnut'},                  // 坚果×2=高坚果
  'peashooter+torchwood':{kind:'firepea'},             // 豌豆+火炬=火焰豌豆
- 'cherry+peashooter':{kind:'cherrypea',n:'樱桃投手',art:['plt','#e8303a','#a81018',{}],st:'投掷爆炸樱桃(60+溅射)',fl:'"甜蜜的重击。"'},
- 'cherry+wallnut':{kind:'nutboom',n:'爆裂坚果',art:['nut','#e05a3a','#a82018',{}],st:'被啃坏时猛烈爆炸',fl:'"别惹我,会炸。"'},
+ 'cherry+peashooter':{kind:'cherrypea',n:'樱桃投手',art:['plt','#e8303a','#a81018',{}],spec:{arch:'lob',ap:{dmg:60,splash:30},hp:300,traits:[]},st:'投掷爆炸樱桃(60+溅射)',fl:'"甜蜜的重击。"'},
+ 'cherry+wallnut':{kind:'nutboom',n:'爆裂坚果',art:['nut','#e05a3a','#a82018',{}],spec:{arch:null,ap:{},hp:3000,traits:[],boomDeath:{r:90,dmg:1200}},st:'被啃坏时猛烈爆炸',fl:'"别惹我,会炸。"'},
 };
 // 老30种植物的融合行为映射(修复: 融合体继承真实机制)
 const LEGACY_ARCH={
@@ -335,21 +335,33 @@ function fusionTraits(b){
   if(!t.length)t.push('power');
   return t;
 }
+function archOf(k){const P0=PD[k];return P0.arch||(LEGACY_ARCH[k]||[])[0]||null;}
+function apOf(k){const P0=PD[k];return (P0.ap&&Object.keys(P0.ap).length)?P0.ap:((LEGACY_ARCH[k]||[])[1]||{});}
+const ACTIVE_ARCH=new Set(['shooter','lob','fume','star','melee','spikes','mag','zap','air','cob','gsquash','trap','boom','roll','lava','tick']);
+function pickMain(a,b){ // 融合版: 顺序无关 — 有攻击行为的一方当主体
+  const aa=archOf(a),ab=archOf(b);
+  const actA=aa&&ACTIVE_ARCH.has(aa),actB=ab&&ACTIVE_ARCH.has(ab);
+  if(actA&&!actB)return [a,b];
+  if(actB&&!actA)return [b,a];
+  return [a,b].sort();
+}
 function ensureFusionKind(a,b){
   const key=[a,b].sort().join('+');
   const sp=FUSION_SPECIAL[key];
   if(sp&&PD[sp.kind]&&(!sp.n))return sp.kind; // 结果是已有植物: 直接得到它(坚果×2=高坚果)
   const kind=sp?sp.kind:'fx_'+key;
   if(PD[kind])return kind;
-  const A=PD[a],B=PD[b];
-  const la=LEGACY_ARCH[a]||[];
-  const traits=fusionTraits(b);
-  PD[kind]={name:sp?sp.n:A.name+'·'+B.name,cost:0,cd:0,hp:A.hp,cat:'atk',
-    arch:A.arch||la[0],ap:(A.ap&&Object.keys(A.ap).length)?{...A.ap}:{...(la[1]||{})},
-    art:sp?sp.art:['fusion',a,b],
-    st:'融合: '+A.st+' ＋ '+B.st,fl:'"1+1>2!"',fused:true,fuA:a,fuB:b,night:0,aquatic:0};
+  const [main,sub]=pickMain(a,b);
+  const A=PD[main],B=PD[sub];
+  const traits=sp?sp.spec.traits:fusionTraits(sub);
+  PD[kind]={name:sp?sp.n:A.name+'·'+B.name,cost:0,cd:0,hp:sp?sp.spec.hp:A.hp,cat:'atk',
+    arch:sp?sp.spec.arch:(A.arch||archOf(main)),
+    ap:sp?{...sp.spec.ap}:{...apOf(main)},
+    art:sp?sp.art:['fusion',main,sub],
+    st:'融合: '+A.st+' ＋ '+B.st,fl:'"1+1>2!"',fused:true,fuA:main,fuB:sub,night:0,aquatic:0};
   const d=PD[kind];
-  for(const t of traits){
+  if(sp&&sp.spec.boomDeath)d.boomDeath=sp.spec.boomDeath;
+  if(!sp)for(const t of traits){
     if(t==='tank'){d.hp=Math.round(d.hp*3);}
     if(t==='fire'&&d.ap)d.ap.dmg=Math.round((d.ap.dmg||20)*1.5);
     if(t==='power'&&d.ap)d.ap.dmg=Math.round((d.ap.dmg||20)*1.3);
@@ -429,19 +441,19 @@ const ZD={
 };
 // 每关僵尸池: [type, weight, 最低关卡(1-5)]
 const ZPOOL=[
- [['normal',3,1],['cone',1.2,3],['pole',1.2,6],['bucket',.7,10],['garg',.22,16]],
- [['paper',2,1],['normal',2,1],['cone',2,3],['bucket',.8,6],['imp',1,8],['garg',.35,14]],
- [['ducky',2,1],['normal',2,1],['cone',2,3],['snorkel',1.3,5],['bucket',.8,8],['football',.7,12]],
- [['balloon',1.6,1],['normal',1.6,1],['paper',1.6,2],['cone',1.4,3],['ducky',1,4],['digger',.9,6],['snorkel',1,8],['football',.6,12]],
- [['bungee',.8,1],['normal',1.6,1],['cone',1.6,3],['bucket',.8,4],['catapult',.7,5],['football',.6,8],['garg',.35,10]],
+ [['normal',3,1],['cone',1,3],['pole',1,6],['bucket',.5,10],['garg',.15,18]],
+ [['paper',2,1],['normal',2,1],['cone',1.6,3],['bucket',.5,6],['imp',.8,8],['garg',.25,16]],
+ [['ducky',2,1],['normal',2,1],['cone',1.6,3],['snorkel',1.1,5],['bucket',.5,8],['football',.5,12]],
+ [['balloon',1.5,1],['normal',1.6,1],['paper',1.5,2],['cone',1.2,3],['ducky',1,4],['digger',.8,6],['snorkel',.9,8],['football',.45,12]],
+ [['bungee',.7,1],['normal',1.6,1],['cone',1.3,3],['bucket',.5,4],['catapult',.6,5],['football',.45,8],['garg',.25,12]],
 ];
-function levelDef(idx){ // idx 0..99, 5世界×20关
+function levelDef(idx){ // idx 0..99, 5世界×20关 (降难度版)
   const wi=Math.min(4,idx/20|0),li=idx%20+1,w=WORLDS[wi];
-  const budget=Math.round(8+li*2.2+wi*8);
-  const nW=li<8?8:(li<15?9:(li<20?10:12));
+  const budget=Math.round(8+li*1.8+wi*6);
+  const nW=li<10?8:(li<18?9:11);
   const ROWS=w.rows.length,CH=Math.floor((H-GY-22)/ROWS);
   const waves=[];
-  const t0=18+li*2,gap=Math.max(6,(160-li*3)/nW);
+  const t0=25+li*2.5,gap=Math.max(7,(165-li*3)/nW);
   for(let i=0;i<nW;i++){
     const huge=(i===(nW>>1))||i===nW-1;
     let n=Math.max(1,Math.round(budget/nW*(huge?2.1:1)*rand(.85,1.15)));
@@ -525,7 +537,7 @@ function entScale(rs,ax,ay,fn){ctx.save();ctx.translate(ax,ay);ctx.scale(rs,rs);
 function waterRow(r){return LD.w.rows[r]==='w';}
 function reset(){
   const w=LD.w;
-  S={t:0,sun:50,plants:[],zombies:[],peas:[],lobs:[],stars:[],fumes:[],suns:[],parts:[],mowers:[],scorch:[],craters:[],graves:[],
+  S={t:0,sun:100,plants:[],zombies:[],peas:[],lobs:[],stars:[],fumes:[],suns:[],parts:[],mowers:[],scorch:[],craters:[],graves:[],
     cds:{},sel:null,shovel:false,mx:-99,my:-99,
     waveI:0,waves:LD.waves.map(x=>({...x})),spawnQ:[],made:0,
     banner:null,shake:0,skySunT:5,skyN:0,over:0,overT:0,endShown:false,kills:0,groanT:6,eatT:0,sunPulse:0,
@@ -674,7 +686,7 @@ function update(dt){
   // 天降阳光
   if(LD.w.skySun){
     S.skySunT-=dt;
-    if(S.skySunT<=0){S.skyN++;S.skySunT=S.skyN<=3?8:rand(8.5,12);
+    if(S.skySunT<=0){S.skyN++;S.skySunT=S.skyN<=3?6:rand(7,9.5);
       S.suns.push({x:rand(GX+30,GX+COLS*CW-30),y:-30,ty:rand(GY+50,GY+LD.ROWS*LD.CH-20),vy:34,land:false,life:11,val:25,fly:null,ph:rand(0,9),vx:0,g:0});}
   }
   // 波次
@@ -1163,7 +1175,7 @@ function updZombies(dt){
         const bd=PD[target.kind]||{},bx=bd.bite;
         if(target.shell>0){target.shell-=40;if(target.shell<=0){SFX.armorPop();
           if(target.shellKind==='bubbleshroom')for(let i=0;i<8;i++)S.parts.push({x:target.cx,y:target.cy-30,vx:rand(-70,70),vy:rand(-90,-10),g:200,life:.5,max:.5,r:rand(2,5),col:'rgba(240,200,224,.8)'});}}
-        else{target.hp-=(bx&&bx.half)?20:40;target.hitT=0.3;}
+        else{target.hp-=(bx&&bx.half)?16:32;target.hitT=0.3;}
         if(bx){
           if(bx.shift){target.shifts=(target.shifts||0)+1;
             z.row=clamp(z.row+(z.row===0?1:(z.row===LD.ROWS-1?-1:(Math.random()<.5?-1:1))),0,LD.ROWS-1);
