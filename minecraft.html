@@ -261,7 +261,7 @@
         <tr><td class="sec" colspan="4">🌍 视 角 与 维 度</td></tr>
         <tr><td class="k">F5</td><td>第一 / 第三人称</td><td class="k">F3</td><td>坐标与 FPS</td></tr>
         <tr><td class="k">N</td><td>切换维度 🌍🔥🌌</td><td class="k">M</td><td>背景音乐 开 / 关</td></tr>
-        <tr><td class="k">H</td><td>开关本帮助</td><td class="k">音量</td><td>开始界面 🎵 调节</td></tr>
+        <tr><td class="k">H</td><td>开关本帮助</td><td class="k">R</td><td>卡住时回出生点</td></tr>
       </table>
       <div class="sub" style="margin:6px 0 0">💡 饱食度 ≥ 18 才回血 · 铁矿要石镐 · 黑曜石要钻石镐 · 盔甲最高减伤 80%</div>
     </div>
@@ -4007,6 +4007,14 @@
     keys.add(e.code);
     if (e.code === 'KeyH') { toggleHelp(); return; }
     if (e.code === 'KeyM') { toggleMusic(); return; }
+    if (e.code === 'KeyR') {   // 卡住自救：回当前维度出生点
+      player.pos.copy(dims[cur].spawn);
+      player.vel.set(0, 0, 0);
+      player.invulnT = 2;
+      showToast('🧭 已回到出生点');
+      sfx(500, .1, 'sine', .08);
+      return;
+    }
     if (e.code === 'KeyE') { openInventory(); return; }
     if (e.code === 'KeyQ') { dropHeldItem(); return; }
     if (e.code === 'KeyN') { switchDimension(nextDim()); return; }
