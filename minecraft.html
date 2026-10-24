@@ -1539,13 +1539,14 @@
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(innerWidth, innerHeight);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  // 4K 超采样 + 自适应降档：帧率低自动降分辨率，流畅自动升回（开关可整体关闭）
-  let uhdOn = localStorage.getItem('mc_4k') !== '0';
+  // 4K 超采样 + 自适应降档：默认关闭（性能优先），需要时在开始界面打开
+  let uhdOn = localStorage.getItem('mc_4k_v2') === '1';
   let dynH = 2160, perfT = 0, perfCd = 0, adaptToastT = 0;
   function applyUHD() {
-    const ratio = uhdOn ? Math.max(1, Math.min(4, dynH / innerHeight)) : Math.min(devicePixelRatio, 2);
+    const w = innerWidth || 1280, h = innerHeight || 720;   // 面板隐藏时窗口尺寸可能为 0
+    const ratio = uhdOn ? Math.max(1, Math.min(4, dynH / h)) : Math.min(devicePixelRatio, 2);
     renderer.setPixelRatio(ratio);
-    renderer.setSize(innerWidth, innerHeight);
+    renderer.setSize(w, h);
   }
   applyUHD();
   function autoQuality(dt, fps) {
@@ -1553,8 +1554,9 @@
     perfT += dt; perfCd = Math.max(0, perfCd - dt); adaptToastT = Math.max(0, adaptToastT - dt);
     if (perfT < 1.5) return;
     perfT = 0;
-    if (fps < 42 && perfCd <= 0) {   // 卡顿 → 降档
-      const next = Math.max(960, Math.round(dynH * .75 / 60) * 60);
+    if (fps < 42 && perfCd <= 0) {   // 卡顿 → 降档（低于 30 帧直接跳两档急刹）
+      const k = fps < 30 ? .56 : .75;
+      const next = Math.max(720, Math.round(dynH * k / 60) * 60);
       if (next < dynH) {
         dynH = next; applyUHD(); perfCd = 4;
         if (adaptToastT <= 0) { adaptToastT = 12; showToast('⚡ 检测到卡顿，已自动优化画质'); }
@@ -1564,7 +1566,7 @@
       if (next > dynH) { dynH = next; applyUHD(); perfCd = 6; }
     }
   }
-  window.__setUHD = on => { uhdOn = on; localStorage.setItem('mc_4k', on ? '1' : '0'); dynH = 2160; applyUHD(); };
+  window.__setUHD = on => { uhdOn = on; localStorage.setItem('mc_4k_v2', on ? '1' : '0'); dynH = 2160; applyUHD(); };
   atlasTex.anisotropy = renderer.capabilities.getMaxAnisotropy();   // 斜视角地面纹理不再糊成一片
   document.body.appendChild(renderer.domElement);
 
@@ -3941,13 +3943,13 @@
   // 画质开关（4K 超采样）
   const uhdBtnEl = document.getElementById('uhdBtn');
   function refreshUHDUI() {
-    const on = localStorage.getItem('mc_4k') !== '0';
+    const on = localStorage.getItem('mc_4k_v2') === '1';
     uhdBtnEl.textContent = `4K 超采样：${on ? '开' : '关'}`;
-    uhdBtnEl.style.background = on ? '#3a7d2c' : '#a03030';
+    uhdBtnEl.style.background = on ? '#3a7d2c' : '#4a5568';
   }
   uhdBtnEl.addEventListener('click', e => {
     e.stopPropagation();
-    window.__setUHD(localStorage.getItem('mc_4k') === '0');
+    window.__setUHD(localStorage.getItem('mc_4k_v2') === '0');
     refreshUHDUI();
   });
   refreshUHDUI();
