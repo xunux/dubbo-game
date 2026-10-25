@@ -52,6 +52,27 @@
       <div class="tags"><span>沙盒</span><span>生存</span><span>合成</span><span>Boss</span></div>
       <div class="play">▶ 开始游戏</div>
     </a>
+    <a class="card" href="xiaoxiaole.html">
+      <canvas id="ic-xx" width="236" height="236"></canvas>
+      <div class="name">水果消消乐</div>
+      <div class="desc">点击水果落入盘中 · 再点同款水果即消除<br>写实画质 · 逐关解锁 12 种水果 · 连击倍率</div>
+      <div class="tags"><span>消除</span><span>水果</span><span>连击</span><span>解锁</span></div>
+      <div class="play">▶ 开始游戏</div>
+    </a>
+    <a class="card" href="qieshuiguo.html">
+      <canvas id="ic-qsg" width="236" height="236"></canvas>
+      <div class="name">切水果</div>
+      <div class="desc">划出刀光切开飞来的水果 · 连击加倍<br>100 关解锁 50 壁纸 × 50 刀 · 元素共鸣配合技</div>
+      <div class="tags"><span>关卡</span><span>装备</span><span>共鸣</span><span>连击</span></div>
+      <div class="play">▶ 开始游戏</div>
+    </a>
+    <a class="card" href="math.html">
+      <canvas id="ic-math" width="236" height="236"></canvas>
+      <div class="name">数学勇者</div>
+      <div class="desc">答题施法 RPG · 9 大世界 36 关覆盖 1~9 年级<br>升级称号 · BOSS 战 · 强化工坊 · 错题本 · 无尽模式</div>
+      <div class="tags"><span>RPG</span><span>36关</span><span>1-9年级</span><span>BOSS</span></div>
+      <div class="play">▶ 开始游戏</div>
+    </a>
   </div>
   <footer>键盘 + 鼠标操作 · 建议使用 Chrome / Edge 浏览器 · 双击 html 文件可离线游玩</footer>
 <script>
@@ -95,6 +116,234 @@
   c2.strokeStyle='rgba(0,0,0,.18)';c2.lineWidth=2;c2.strokeRect(0,0,66,66);c2.restore();
   c2.fillStyle='rgba(60,40,15,.35)';
   for(let i=0;i<14;i++)c2.fillRect(10+(i*37)%110,8+(i*53)%46,4,4);
+  // —— 水果消消乐图标: 盘子盛水果 + 下落水果 ——
+  const c3=document.getElementById('ic-xx').getContext('2d');
+  c3.translate(118,118);
+  // 背景光斑
+  const halo=c3.createRadialGradient(0,-6,20,0,-6,112);
+  halo.addColorStop(0,'rgba(255,255,255,.35)');halo.addColorStop(1,'rgba(255,255,255,0)');
+  c3.fillStyle=halo;c3.beginPath();c3.arc(0,-6,110,0,7);c3.fill();
+  function leaf3(x,y,R,ang){
+    c3.save();c3.translate(x,y);c3.rotate(ang);
+    const lg3=c3.createLinearGradient(0,-R*.17,R*.62,0);
+    lg3.addColorStop(0,'#7ecb4e');lg3.addColorStop(1,'#3d9430');
+    c3.fillStyle=lg3;c3.beginPath();c3.ellipse(R*.3,0,R*.36,R*.17,0,0,7);c3.fill();
+    c3.strokeStyle='rgba(30,90,25,.5)';c3.lineWidth=R*.028;c3.stroke();c3.restore();
+  }
+  // 苹果
+  (function(){const R=40;c3.save();c3.translate(-46,-26);
+    const g=c3.createRadialGradient(-R*.32,-R*.36,R*.1,0,R*.02,R*1.18);
+    g.addColorStop(0,'#ffd9c4');g.addColorStop(.18,'#ff8f7d');
+    g.addColorStop(.52,'#e6352c');g.addColorStop(.85,'#b81f22');g.addColorStop(1,'#8f161c');
+    c3.beginPath();c3.moveTo(0,-R*.58);
+    c3.bezierCurveTo(-R*.3,-R*.98,-R*.92,-R*.8,-R*.95,-R*.16);
+    c3.bezierCurveTo(-R*.97,R*.4,-R*.5,R*.92,0,R*.95);
+    c3.bezierCurveTo(R*.5,R*.92,R*.97,R*.4,R*.95,-R*.16);
+    c3.bezierCurveTo(R*.92,-R*.8,R*.3,-R*.98,0,-R*.58);c3.closePath();
+    c3.fillStyle=g;c3.fill();c3.lineWidth=R*.035;c3.strokeStyle='rgba(105,18,16,.55)';c3.stroke();
+    c3.save();c3.clip();
+    c3.strokeStyle='rgba(255,220,190,.14)';c3.lineWidth=R*.05;
+    for(let i=-2;i<=2;i++){c3.beginPath();c3.moveTo(i*R*.3,-R);c3.quadraticCurveTo(i*R*.42,0,i*R*.3,R);c3.stroke();}
+    c3.restore();
+    c3.strokeStyle='#6e4522';c3.lineWidth=R*.09;c3.lineCap='round';
+    c3.beginPath();c3.moveTo(0,-R*.5);c3.quadraticCurveTo(R*.1,-R*.82,R*.04,-R*1.02);c3.stroke();
+    leaf3(R*.28,-R*.88,R,.55);
+    c3.fillStyle='rgba(255,255,255,.5)';
+    c3.beginPath();c3.ellipse(-R*.32,-R*.4,R*.26,R*.13,-.5,0,7);c3.fill();
+    c3.restore();})();
+  // 橙子
+  (function(){const R=34;c3.save();c3.translate(50,-34);
+    const g=c3.createRadialGradient(-R*.3,-R*.36,R*.08,0,R*.04,R*1.12);
+    g.addColorStop(0,'#ffe9b8');g.addColorStop(.2,'#ffcf7a');
+    g.addColorStop(.55,'#ffa02a');g.addColorStop(.85,'#ef7d05');g.addColorStop(1,'#cf6603');
+    c3.beginPath();c3.arc(0,R*.04,R*.92,0,7);c3.fillStyle=g;c3.fill();
+    c3.lineWidth=R*.035;c3.strokeStyle='rgba(160,85,10,.55)';c3.stroke();
+    for(let i=0;i<22;i++){const a=i*2.399,r=R*(0.2+((i*53)%72)/100*0.72);
+      c3.fillStyle=i%3?'rgba(200,110,20,.3)':'rgba(255,235,190,.4)';
+      c3.beginPath();c3.arc(Math.cos(a)*r,Math.sin(a)*r+R*.04,R*.026,0,7);c3.fill();}
+    leaf3(R*.24,-R*.84,R,.5);
+    c3.fillStyle='rgba(255,255,255,.45)';
+    c3.beginPath();c3.ellipse(-R*.3,-R*.38,R*.24,R*.12,-.5,0,7);c3.fill();
+    c3.restore();})();
+  // 西瓜瓣(下落中, 上方)
+  (function(){const R=30;c3.save();c3.translate(24,-88);c3.rotate(.3);
+    c3.beginPath();c3.arc(0,-R*.12,R*.98,0,Math.PI);c3.closePath();
+    c3.fillStyle='#2e9e2e';c3.fill();c3.lineWidth=4;c3.strokeStyle='#1d6e22';c3.stroke();
+    c3.beginPath();c3.arc(0,-R*.12,R*.84,0,Math.PI);c3.closePath();c3.fillStyle='#f7f3d8';c3.fill();
+    const g=c3.createRadialGradient(0,-R*.1,R*.1,0,-R*.1,R*.8);
+    g.addColorStop(0,'#ff9a90');g.addColorStop(.6,'#ff5252');g.addColorStop(1,'#e03535');
+    c3.beginPath();c3.arc(0,-R*.12,R*.74,0,Math.PI);c3.closePath();c3.fillStyle=g;c3.fill();
+    c3.fillStyle='#3a2a18';
+    [[-.4,.35],[0,.62],[.4,.35]].forEach(s=>{c3.beginPath();
+      c3.ellipse(s[0]*R,s[1]*R-R*.12,R*.055,R*.09,0,0,7);c3.fill();});
+    c3.restore();})();
+  // 盘子
+  (function(){
+    c3.fillStyle='rgba(60,30,5,.28)';
+    c3.beginPath();c3.ellipse(0,64,104,26,0,0,7);c3.fill();
+    const g=c3.createLinearGradient(0,10,0,72);
+    g.addColorStop(0,'#fff8e8');g.addColorStop(.6,'#f2e6cc');g.addColorStop(1,'#d9c8a4');
+    c3.beginPath();c3.ellipse(0,44,102,32,0,0,7);c3.fillStyle=g;c3.fill();
+    c3.lineWidth=5;c3.strokeStyle='#8a5a2a';c3.stroke();
+    c3.beginPath();c3.ellipse(0,46,88,25,0,0,7);
+    c3.strokeStyle='rgba(138,90,42,.45)';c3.lineWidth=3;c3.stroke();
+  })();
+  // 盘中葡萄 + 草莓
+  (function(){const R=17;
+    c3.fillStyle='rgba(50,30,8,.18)';
+    c3.beginPath();c3.ellipse(-24,40,20,7,0,0,7);c3.fill();
+    c3.save();c3.translate(-24,26);
+    [[-.44,-.32],[0,-.38],[.44,-.32],[-.23,.12],[.23,.12],[0,.56]].forEach(b=>{
+      const g=c3.createRadialGradient(b[0]*R-3,b[1]*R-3,2,b[0]*R,b[1]*R,R*.42);
+      g.addColorStop(0,'#e4c6ff');g.addColorStop(.35,'#b07cf0');
+      g.addColorStop(.7,'#8448cf');g.addColorStop(1,'#5c2fa0');
+      c3.beginPath();c3.arc(b[0]*R,b[1]*R,R*.37,0,7);c3.fillStyle=g;c3.fill();
+      c3.lineWidth=1.4;c3.strokeStyle='rgba(60,25,110,.45)';c3.stroke();
+      c3.fillStyle='rgba(255,255,255,.5)';
+      c3.beginPath();c3.ellipse(b[0]*R-2.5,b[1]*R-3.4,2.2,1.4,-.7,0,7);c3.fill();});
+    c3.restore();})();
+  (function(){const R=15;
+    c3.fillStyle='rgba(50,30,8,.18)';
+    c3.beginPath();c3.ellipse(34,43,18,6,0,0,7);c3.fill();
+    c3.save();c3.translate(34,30);
+    const g=c3.createRadialGradient(-R*.28,-R*.32,R*.08,0,R*.02,R*1.08);
+    g.addColorStop(0,'#ffb0ae');g.addColorStop(.22,'#f85f70');
+    g.addColorStop(.55,'#e82750');g.addColorStop(.85,'#bb0f3c');g.addColorStop(1,'#96082e');
+    c3.beginPath();c3.moveTo(0,R*.98);
+    c3.bezierCurveTo(-R*.78,R*.5,-R*.82,-R*.3,0,-R*.62);
+    c3.bezierCurveTo(R*.82,-R*.3,R*.78,R*.5,0,R*.98);c3.closePath();
+    c3.fillStyle=g;c3.fill();c3.lineWidth=R*.04;c3.strokeStyle='rgba(130,10,45,.55)';c3.stroke();
+    for(let i=0;i<8;i++){const y=-R*.32+Math.floor(i/3)*R*.4,x=(i%3-1)*R*.44*.85;
+      c3.fillStyle='rgba(150,15,45,.4)';
+      c3.beginPath();c3.ellipse(x,y,R*.055,R*.075,0,0,7);c3.fill();
+      c3.fillStyle='#ffe08a';
+      c3.beginPath();c3.ellipse(x,y,R*.028,R*.05,0,0,7);c3.fill();}
+    c3.restore();})();
+  // 星芒
+  c3.fillStyle='#ffe14d';
+  c3.save();c3.translate(-88,-72);
+  c3.beginPath();c3.moveTo(0,-18);c3.quadraticCurveTo(0,0,18,0);c3.quadraticCurveTo(0,0,0,18);
+  c3.quadraticCurveTo(0,0,-18,0);c3.quadraticCurveTo(0,0,0,-18);c3.fill();
+  c3.fillStyle='#fff';
+  c3.beginPath();c3.moveTo(0,-8);c3.quadraticCurveTo(0,0,8,0);c3.quadraticCurveTo(0,0,0,8);
+  c3.quadraticCurveTo(0,0,-8,0);c3.quadraticCurveTo(0,0,0,-8);c3.fill();c3.restore();
+  // —— 数学勇者图标: 小法师 + 算力法杖 ——
+  const c4=document.getElementById('ic-math').getContext('2d');
+  c4.translate(118,120);
+  const halo4=c4.createRadialGradient(0,-8,16,0,-8,108);
+  halo4.addColorStop(0,'rgba(255,255,255,.32)');halo4.addColorStop(1,'rgba(255,255,255,0)');
+  c4.fillStyle=halo4;c4.beginPath();c4.arc(0,-8,106,0,7);c4.fill();
+  // 影子
+  c4.fillStyle='rgba(0,0,0,.22)';c4.beginPath();c4.ellipse(0,72,52,13,0,0,7);c4.fill();
+  // 斗篷
+  c4.fillStyle='#7a3a8a';
+  c4.beginPath();c4.moveTo(-30,-38);c4.quadraticCurveTo(-52,20,-34,64);c4.lineTo(-4,64);c4.lineTo(-8,-34);c4.closePath();c4.fill();
+  // 长袍
+  c4.fillStyle='#3a6ec9';
+  c4.beginPath();c4.moveTo(-30,-30);c4.lineTo(30,-30);c4.quadraticCurveTo(42,50,28,64);c4.lineTo(-28,64);c4.quadraticCurveTo(-42,50,-30,-30);c4.closePath();c4.fill();
+  c4.fillStyle='#ffd94d';c4.fillRect(-30,12,60,9);
+  // 头 + 表情
+  c4.fillStyle='#ffd9b0';c4.beginPath();c4.arc(0,-50,25,0,7);c4.fill();
+  c4.fillStyle='#2a2a2a';c4.beginPath();c4.arc(-8,-52,3.4,0,7);c4.arc(8,-52,3.4,0,7);c4.fill();
+  c4.strokeStyle='#2a2a2a';c4.lineWidth=2.6;c4.beginPath();c4.arc(0,-42,9,.35,2.79);c4.stroke();
+  c4.fillStyle='rgba(255,120,120,.4)';c4.beginPath();c4.arc(-15,-43,5,0,7);c4.arc(15,-43,5,0,7);c4.fill();
+  // 法师帽
+  c4.fillStyle='#2a4aa0';
+  c4.beginPath();c4.ellipse(0,-68,36,10,0,0,7);c4.fill();
+  c4.beginPath();c4.moveTo(-23,-68);c4.quadraticCurveTo(-4,-138,18,-128);c4.quadraticCurveTo(12,-92,23,-68);c4.closePath();c4.fill();
+  c4.fillStyle='#ffe14d';c4.beginPath();c4.arc(-5,-90,4,0,7);c4.arc(9,-101,3.2,0,7);c4.fill();
+  // 法杖 + 发光宝珠
+  c4.strokeStyle='#8a5a2a';c4.lineWidth=9;c4.lineCap='round';
+  c4.beginPath();c4.moveTo(34,44);c4.lineTo(74,-52);c4.stroke();
+  const og4=c4.createRadialGradient(74,-52,3,74,-52,30);
+  og4.addColorStop(0,'rgba(255,240,150,.95)');og4.addColorStop(1,'rgba(255,240,150,0)');
+  c4.fillStyle=og4;c4.beginPath();c4.arc(74,-52,30,0,7);c4.fill();
+  c4.fillStyle='#9ade54';c4.beginPath();c4.arc(74,-52,12,0,7);c4.fill();
+  c4.fillStyle='rgba(255,255,255,.85)';c4.beginPath();c4.arc(71,-55,3.4,0,7);c4.fill();
+  // 漂浮数字与运算符
+  c4.font='900 30px "Microsoft YaHei",sans-serif';c4.textAlign='center';c4.textBaseline='middle';
+  function mnum(t,x,y,s,col){
+    c4.save();c4.translate(x,y);c4.scale(s,s);
+    c4.strokeStyle='rgba(74,44,7,.85)';c4.lineWidth=5;c4.strokeText(t,0,0);
+    c4.fillStyle=col;c4.fillText(t,0,0);c4.restore();
+  }
+  mnum('7',-78,-66,1,'#ffe14d');
+  mnum('+',-92,-10,1,'#9ade54');
+  mnum('9',-52,36,.9,'#b0e8ff');
+  mnum('×',36,-84,.8,'#ffb05e');
+  // 星芒
+  c4.fillStyle='#fff';
+  c4.save();c4.translate(98,-94);
+  c4.beginPath();c4.moveTo(0,-14);c4.quadraticCurveTo(0,0,14,0);c4.quadraticCurveTo(0,0,0,14);
+  c4.quadraticCurveTo(0,0,-14,0);c4.quadraticCurveTo(0,0,0,-14);c4.fill();c4.restore();
+  // —— 切水果图标: 西瓜切面 + 橙子 + 草莓 + 刀光 ——
+  const c5=document.getElementById('ic-qsg').getContext('2d');
+  c5.translate(118,120);
+  const halo5=c5.createRadialGradient(0,-4,18,0,-4,110);
+  halo5.addColorStop(0,'rgba(255,255,255,.3)');halo5.addColorStop(1,'rgba(255,255,255,0)');
+  c5.fillStyle=halo5;c5.beginPath();c5.arc(0,-4,108,0,7);c5.fill();
+  // 西瓜切面
+  (function(){const R=52;c5.save();c5.translate(-16,26);c5.rotate(.12);
+    c5.beginPath();c5.arc(0,0,R,0,7);c5.fillStyle='#2f9e33';c5.fill();
+    c5.beginPath();c5.arc(0,0,R*.9,0,7);c5.fillStyle='#eef7dc';c5.fill();
+    const g=c5.createRadialGradient(-8,-8,6,0,0,R*.82);
+    g.addColorStop(0,'#ff8a80');g.addColorStop(.55,'#ff5252');g.addColorStop(1,'#e03535');
+    c5.beginPath();c5.arc(0,0,R*.82,0,7);c5.fillStyle=g;c5.fill();
+    c5.fillStyle='#3a2a18';
+    for(let i=0;i<9;i++){const a=i/9*6.28+.35,rr=R*(i%2?.5:.28);
+      c5.beginPath();c5.ellipse(Math.cos(a)*rr,Math.sin(a)*rr,R*.05,R*.085,a,0,7);c5.fill();}
+    c5.lineWidth=3;c5.strokeStyle='rgba(8,52,14,.55)';
+    c5.beginPath();c5.arc(0,0,R,0,7);c5.stroke();
+    c5.restore();})();
+  // 橙子
+  (function(){const R=28;c5.save();c5.translate(64,-46);
+    const g=c5.createRadialGradient(-R*.3,-R*.34,R*.08,0,0,R*1.05);
+    g.addColorStop(0,'#ffe9b8');g.addColorStop(.35,'#ffcf7a');g.addColorStop(.75,'#ffa02a');g.addColorStop(1,'#e07008');
+    c5.beginPath();c5.arc(0,0,R,0,7);c5.fillStyle=g;c5.fill();
+    for(let i=0;i<14;i++){const a=i*2.399,rr=R*(.3+(i*53%60)/100*.55);
+      c5.fillStyle=i%3?'rgba(210,115,20,.3)':'rgba(255,238,190,.4)';
+      c5.beginPath();c5.arc(Math.cos(a)*rr,Math.sin(a)*rr,R*.03,0,7);c5.fill();}
+    c5.lineWidth=2.4;c5.strokeStyle='rgba(150,80,8,.55)';
+    c5.beginPath();c5.arc(0,0,R,0,7);c5.stroke();
+    c5.fillStyle='rgba(255,255,255,.4)';
+    c5.beginPath();c5.ellipse(-R*.3,-R*.36,R*.22,R*.1,-.6,0,7);c5.fill();
+    c5.restore();})();
+  // 草莓(左上小块)
+  (function(){const R=22;c5.save();c5.translate(-80,-58);c5.rotate(-.3);
+    const g=c5.createRadialGradient(-6,-6,4,0,0,R*1.1);
+    g.addColorStop(0,'#ffb0ae');g.addColorStop(.4,'#f85f70');g.addColorStop(1,'#bb0f3c');
+    c5.beginPath();c5.moveTo(0,-R*.5);
+    c5.bezierCurveTo(R*.78,-R*.92,R*1.04,-R*.05,0,R*.98);
+    c5.bezierCurveTo(-R*1.04,-R*.05,-R*.78,-R*.92,0,-R*.5);c5.closePath();
+    c5.fillStyle=g;c5.fill();
+    c5.lineWidth=2;c5.strokeStyle='rgba(130,10,45,.55)';c5.stroke();
+    c5.fillStyle='#ffe08a';
+    for(let i=0;i<6;i++){const yy=-R*.25+Math.floor(i/3)*R*.4,xx=(i%3-1)*R*.36;
+      c5.beginPath();c5.ellipse(xx,yy,R*.05,R*.08,0,0,7);c5.fill();}
+    c5.fillStyle='#3d9430';
+    for(let k=-1;k<=1;k++){c5.save();c5.translate(k*R*.2,-R*.42);c5.rotate(k*.55);
+      c5.beginPath();c5.ellipse(0,-R*.1,R*.09,R*.2,0,0,7);c5.fill();c5.restore();}
+    c5.restore();})();
+  // 刀光斜贯
+  c5.save();c5.rotate(-.5);
+  const sg5=c5.createLinearGradient(-95,0,95,0);
+  sg5.addColorStop(0,'rgba(255,255,255,0)');sg5.addColorStop(.5,'rgba(255,255,255,.95)');sg5.addColorStop(1,'rgba(255,255,255,0)');
+  c5.fillStyle=sg5;
+  c5.beginPath();c5.moveTo(-96,6);c5.quadraticCurveTo(0,-14,96,-26);
+  c5.quadraticCurveTo(0,-4,-96,6);c5.closePath();c5.fill();
+  c5.fillStyle='rgba(255,255,255,.35)';
+  c5.beginPath();c5.moveTo(-96,14);c5.quadraticCurveTo(0,-2,96,-16);
+  c5.quadraticCurveTo(0,8,-96,14);c5.closePath();c5.fill();
+  c5.restore();
+  // 星芒
+  function spark5(x,y,s,col){
+    c5.fillStyle=col;c5.save();c5.translate(x,y);
+    c5.beginPath();c5.moveTo(0,-s);c5.quadraticCurveTo(0,0,s,0);c5.quadraticCurveTo(0,0,0,s);
+    c5.quadraticCurveTo(0,0,-s,0);c5.quadraticCurveTo(0,0,0,-s);c5.closePath();c5.fill();c5.restore();
+  }
+  spark5(92,44,13,'#ffe14d');
+  spark5(86,52,6,'#fff');
+  spark5(-96,64,9,'#fff');
 })();
 </script>
 </body>
