@@ -1,0 +1,2351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>数学勇者：真理之光</title>
+<link rel="icon" href="data:,">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d160b;font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+#wrap{position:absolute;left:50%;top:50%;width:1280px;height:720px;transform-origin:0 0;background:#141f10;overflow:hidden;box-shadow:0 0 60px #000}
+canvas#cv{position:absolute;left:0;top:0}
+#ui{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+#ui>*{pointer-events:auto}
+.hidden{display:none!important}
+/* ===== 通用面板与按钮（延续门户木牌基因） ===== */
+.panel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(18,30,14,.96);
+  border:4px solid #8a5a2a;border-radius:18px;box-shadow:0 10px 0 #3a2508,0 0 50px rgba(0,0,0,.6);
+  padding:26px 34px;color:#f4ecd8;text-align:center;max-height:660px;overflow:auto}
+.panel h1{font-size:44px;font-weight:900;color:#ffe14d;text-shadow:0 3px 0 #4a2c07,0 0 24px rgba(255,225,77,.35);letter-spacing:2px}
+.panel h2{font-size:28px;font-weight:900;color:#ffe14d;text-shadow:0 2px 0 #4a2c07;margin-bottom:12px}
+.panel .sub{color:#cdbf9a;font-size:15px;margin:6px 0 18px}
+.btn{display:inline-block;cursor:pointer;border:none;outline:none;font-family:inherit;
+  background:linear-gradient(180deg,#9ade54,#55a326);color:#1c3a06;font-size:20px;font-weight:900;
+  padding:12px 34px;border-radius:14px;box-shadow:0 5px 0 #33691e,0 6px 12px rgba(0,0,0,.4);
+  text-shadow:0 1px 0 rgba(255,255,255,.4);transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 7px 0 #33691e,0 10px 16px rgba(0,0,0,.45)}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 #33691e}
+.btn.dim{background:linear-gradient(180deg,#b9a98a,#8a7a5c);color:#3a2f1c;box-shadow:0 5px 0 #5a4d34;cursor:default}
+.btn.warn{background:linear-gradient(180deg,#ffb35e,#e07818);box-shadow:0 5px 0 #9c520c;color:#4a2404}
+.btn.small{font-size:15px;padding:8px 18px;border-radius:10px}
+.menu-btns .btn{display:block;margin:12px auto;min-width:300px}
+.gold-tag{display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.4);border:2px solid #8a5a2a;
+  border-radius:999px;padding:4px 14px;color:#ffd94d;font-weight:900;font-size:16px}
+/* ===== 世界地图 ===== */
+#map .map-head{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;justify-content:center}
+#map .map-head .title-chip{background:rgba(0,0,0,.35);border-radius:10px;padding:6px 14px;font-weight:900;color:#ffe14d;font-size:17px;border:2px solid #6a4a1a}
+#mapWorlds{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;min-width:900px}
+.wcard{background:linear-gradient(180deg,rgba(255,249,226,.08),rgba(0,0,0,.25));border:2px solid #6a4a1a;border-radius:12px;padding:10px 12px;text-align:left}
+.wcard .wname{font-weight:900;font-size:17px;color:#ffe14d;display:flex;justify-content:space-between;align-items:center}
+.wcard .wname .grade{font-size:12px;color:#cdbf9a;font-weight:700;background:rgba(0,0,0,.35);padding:2px 8px;border-radius:6px}
+.wcard .lvls{display:flex;gap:6px;margin-top:8px}
+.lvbtn{flex:1;cursor:pointer;text-align:center;border-radius:9px;padding:7px 0 5px;font-weight:900;color:#fff;
+  background:linear-gradient(180deg,#7fc34a,#4a8a24);box-shadow:0 3px 0 #2f5a15;font-size:15px;border:none;font-family:inherit}
+.lvbtn .stars{font-size:11px;color:#ffe97a;letter-spacing:-1px;height:13px}
+.lvbtn.locked{background:linear-gradient(180deg,#5c6653,#3d453a);box-shadow:0 3px 0 #262c22;color:#9aa793;cursor:default}
+.lvbtn.cur{animation:pulse 1.2s infinite}
+.lvbtn.boss{background:linear-gradient(180deg,#e08a5e,#b04a1c);box-shadow:0 3px 0 #6e2c0a}
+.lvbtn.boss.locked{background:linear-gradient(180deg,#66575a,#463a3e);box-shadow:0 3px 0 #2c2427;color:#a79599}
+@keyframes pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.45)}}
+/* ===== 商店 ===== */
+#shop .rows{min-width:640px;text-align:left}
+.shoprow{display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.28);border:2px solid #5a4a26;border-radius:12px;padding:10px 14px;margin-bottom:10px}
+.shoprow .ico{font-size:30px;width:44px;text-align:center}
+.shoprow .info{flex:1}
+.shoprow .nm{font-weight:900;font-size:17px;color:#ffe14d}
+.shoprow .ds{font-size:13px;color:#cdbf9a;margin-top:2px}
+.shoprow .dots{display:flex;gap:5px;margin-top:6px}
+.shoprow .dots i{width:22px;height:8px;border-radius:4px;background:#3d453a;display:block}
+.shoprow .dots i.on{background:#9ade54;box-shadow:0 0 6px #9ade54}
+/* ===== 错题本 ===== */
+#book .rows{min-width:600px;max-height:420px;overflow:auto;text-align:left}
+.brow{display:flex;gap:10px;align-items:center;background:rgba(0,0,0,.28);border:2px solid #5a4a26;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:15px}
+.brow .tag{background:#7a3a1a;color:#ffd9c9;font-size:12px;font-weight:900;border-radius:6px;padding:3px 8px;flex-shrink:0}
+.brow .qq{flex:1;color:#f4ecd8}
+.brow .aa{color:#9ade54;font-weight:900}
+/* ===== 结算 ===== */
+#result .stars{font-size:64px;letter-spacing:6px;margin:6px 0 2px;text-shadow:0 4px 8px rgba(0,0,0,.6)}
+#result .stars .st{display:inline-block;opacity:.22;transform:scale(.6)}
+#result .stars .st.on{opacity:1;transform:scale(1);animation:starpop .45s cubic-bezier(.2,2.4,.4,1) forwards}
+@keyframes starpop{from{opacity:0;transform:scale(2.2) rotate(30deg)}to{opacity:1;transform:scale(1) rotate(0)}}
+#result .stat{font-size:17px;color:#e8dfc6;margin:4px 0}
+#result .lvup{display:none;margin:10px auto;padding:10px 22px;background:linear-gradient(180deg,rgba(154,222,84,.25),rgba(85,163,38,.12));
+  border:2px solid #9ade54;border-radius:12px;color:#c9f79a;font-weight:900;font-size:19px;animation:starpop .5s cubic-bezier(.2,2.4,.4,1)}
+/* ===== 答题输入 ===== */
+#pad{position:absolute;right:22px;bottom:16px;width:308px;background:rgba(14,24,10,.88);border:3px solid #8a5a2a;border-radius:16px;padding:12px;box-shadow:0 8px 0 #3a2508}
+#padDisp{background:rgba(0,0,0,.5);border:2px solid #5a4a26;border-radius:10px;height:52px;line-height:48px;
+  color:#9ade54;font-size:30px;font-weight:900;text-align:center;margin-bottom:10px;overflow:hidden;white-space:nowrap}
+#padDisp.err{color:#ff7a5e;border-color:#a03a22}
+#padGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pk{cursor:pointer;border:none;font-family:inherit;background:linear-gradient(180deg,#e8dcb8,#c9b988);color:#3a2c0a;
+  font-size:22px;font-weight:900;border-radius:10px;padding:9px 0;box-shadow:0 3px 0 #8a7a4c}
+.pk:active{transform:translateY(2px);box-shadow:0 1px 0 #8a7a4c}
+.pk.op{background:linear-gradient(180deg,#f0c98a,#d8a45c)}
+.pk.go{background:linear-gradient(180deg,#9ade54,#55a326);color:#1c3a06;box-shadow:0 3px 0 #33691e}
+.pk.wide{grid-column:span 2}
+#choices{position:absolute;right:22px;bottom:16px;width:390px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chbtn{cursor:pointer;border:3px solid #8a5a2a;font-family:inherit;background:linear-gradient(180deg,#e8dcb8,#c9b988);
+  color:#3a2c0a;font-size:24px;font-weight:900;border-radius:14px;padding:20px 6px;box-shadow:0 5px 0 #8a7a4c;transition:transform .08s}
+.chbtn:hover{transform:translateY(-2px)}
+.chbtn:active{transform:translateY(2px);box-shadow:0 1px 0 #8a7a4c}
+.chbtn.ok{background:linear-gradient(180deg,#9ade54,#55a326);color:#123102}
+.chbtn.no{background:linear-gradient(180deg,#e08a5e,#b04a1c);color:#4a1c04}
+.chkey{display:block;font-size:12px;color:#7a6a3a;margin-bottom:3px}
+/* ===== 剧情/结局/暂停 ===== */
+#story .wbadge{font-size:15px;font-weight:900;color:#0d160b;background:#ffe14d;border-radius:999px;display:inline-block;padding:5px 18px;margin-bottom:14px}
+#story .stext{font-size:19px;line-height:1.9;color:#f4ecd8;max-width:560px;margin:0 auto 20px}
+#ending .tro{font-size:70px;animation:starpop .6s cubic-bezier(.2,2.4,.4,1)}
+/* ===== 提示气泡 ===== */
+#toast{position:absolute;left:50%;top:86px;transform:translateX(-50%);background:rgba(20,32,16,.95);border:3px solid #8a5a2a;
+  border-radius:12px;padding:10px 26px;color:#ffe14d;font-weight:900;font-size:17px;box-shadow:0 6px 0 #3a2508;opacity:0;transition:opacity .25s;pointer-events:none;z-index:99}
+#toast.show{opacity:1}
+@media (max-width:760px){
+  .panel{padding:16px 14px;max-height:86vh}
+  .panel h1{font-size:30px}
+  #mapWorlds{grid-template-columns:1fr 1fr;min-width:0}
+  .wcard .lvls{flex-wrap:wrap}
+}
+/* 窄屏：答题控件脱离画布缩放，固定到视口，保证触控目标大小 */
+body>#pad.mobile-pad{position:fixed;right:10px;bottom:10px;width:min(56vw,320px);z-index:60;transform:none}
+body>#pad.mobile-pad #padDisp{font-size:clamp(20px,6vw,30px);height:56px;line-height:52px}
+body>#pad.mobile-pad .pk{font-size:clamp(18px,5.6vw,26px);padding:clamp(8px,2.6vw,13px) 0}
+body>#pad.mobile-pad .pk.go{grid-column:span 3}
+body>#choices.mobile-pad{position:fixed;right:10px;bottom:10px;width:min(64vw,360px);grid-template-columns:1fr 1fr;z-index:60;gap:8px;transform:none}
+body>#choices.mobile-pad .chbtn{font-size:clamp(15px,4.6vw,24px);padding:clamp(12px,4vw,22px) 4px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="cv" width="1280" height="720"></canvas>
+  <div id="ui">
+    <!-- 战斗内答题控件 -->
+    <div id="pad" class="hidden">
+      <div id="padDisp"></div>
+      <div id="padGrid">
+        <button class="pk" data-k="7">7</button><button class="pk" data-k="8">8</button><button class="pk" data-k="9">9</button>
+        <button class="pk" data-k="4">4</button><button class="pk" data-k="5">5</button><button class="pk" data-k="6">6</button>
+        <button class="pk" data-k="1">1</button><button class="pk" data-k="2">2</button><button class="pk" data-k="3">3</button>
+        <button class="pk op" data-k="-">−</button><button class="pk" data-k="0">0</button><button class="pk op" data-k=".">.</button>
+        <button class="pk op wide" data-k="/">⁄分数</button><button class="pk op" data-k="B">⌫</button>
+        <button class="pk go" data-k="S" style="grid-column:span 3">确认作答 ⏎</button>
+      </div>
+    </div>
+    <div id="choices" class="hidden"></div>
+
+    <!-- 主菜单 -->
+    <div id="menu" class="panel" style="min-width:480px">
+      <h1>⚔ 数学勇者</h1>
+      <div class="sub" style="font-size:21px;color:#ffe14d;margin-bottom:4px">真 理 之 光</div>
+      <div class="sub">数字大陆被混沌侵蚀——用算力法杖答题施法，闯过 9 大世界 36 关，从一年级一路修炼到数学大师！</div>
+      <div class="menu-btns">
+        <button class="btn" id="btnContinue">▶ 开始冒险</button>
+        <button class="btn dim hidden" id="btnEndless">♾ 无尽模式</button>
+        <button class="btn warn" id="btnBook">📖 错题本</button>
+        <button class="btn warn" id="btnShopMenu">🛠 强化工坊</button>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:10px;justify-content:center">
+        <button class="btn small" id="btnSfx">🔊 音效：开</button>
+        <button class="btn small" id="btnBgm">🎵 音乐：开</button>
+        <button class="btn small warn" id="btnReset">🗑 重置进度</button>
+        <button class="btn small warn" id="btnPortal">🚪 退出游戏</button>
+      </div>
+      <div class="sub" style="margin-top:14px;font-size:13px">键盘输入数字 · 回车提交 · 选择题按 1-4 · Esc 或左下 ⏸ 暂停</div>
+    </div>
+
+    <!-- 世界地图 -->
+    <div id="map" class="panel" style="min-width:960px">
+      <div class="map-head">
+        <span class="title-chip" id="heroChip">Lv.1 数字学徒</span>
+        <span class="gold-tag">🪙 <span id="mapGold">0</span></span>
+        <button class="btn small hidden" id="btnEndlessMap">♾ 无尽模式</button>
+        <button class="btn small" id="btnShop">🛠 强化工坊</button>
+        <button class="btn small warn" id="btnBook2">📖 错题本</button>
+        <button class="btn small dim" id="btnBackMenu">☰ 主菜单</button>
+      </div>
+      <div id="mapWorlds"></div>
+    </div>
+
+    <!-- 强化工坊 -->
+    <div id="shop" class="panel">
+      <h2>🛠 强化工坊</h2>
+      <div class="sub">用金币强化勇者，让答题之旅更从容 <span class="gold-tag" style="margin-left:10px">🪙 <span id="shopGold">0</span></span></div>
+      <div class="rows" id="shopRows"></div>
+      <button class="btn" id="btnShopBack">返 回 地 图</button>
+    </div>
+
+    <!-- 错题本 -->
+    <div id="book" class="panel">
+      <h2>📖 错题本</h2>
+      <div class="sub" id="bookSub">答错的题目会记录在这里，复习后再出发吧！</div>
+      <div class="rows" id="bookRows"></div>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <button class="btn warn" id="btnBookClear">清空错题</button>
+        <button class="btn" id="btnBookBack">返 回</button>
+      </div>
+    </div>
+
+    <!-- 关卡结算 -->
+    <div id="result" class="panel" style="min-width:460px">
+      <h2 id="resTitle">关卡通过！</h2>
+      <div class="stars"><span class="st">★</span><span class="st">★</span><span class="st">★</span></div>
+      <div class="stat" id="resStat1"></div>
+      <div class="stat" id="resStat2"></div>
+      <div class="lvup" id="resLvup"></div>
+      <div style="margin-top:14px;display:flex;gap:12px;justify-content:center">
+        <button class="btn" id="btnNext">下一关 ▶</button>
+        <button class="btn warn" id="btnRetry">再试一次</button>
+        <button class="btn dim" id="btnToMap">返回地图</button>
+      </div>
+    </div>
+
+    <!-- 世界剧情 -->
+    <div id="story" class="panel" style="min-width:520px">
+      <div class="wbadge" id="storyBadge">世界一 · 数字森林</div>
+      <h2 id="storyTitle">迷雾笼罩的森林</h2>
+      <div class="stext" id="storyText"></div>
+      <button class="btn" id="btnStoryGo">出 发！</button>
+    </div>
+
+    <!-- 通关结局 -->
+    <div id="ending" class="panel" style="min-width:560px">
+      <div class="tro">🏆</div>
+      <h1 style="font-size:38px">真理之光重燃！</h1>
+      <div class="stext" id="endText"></div>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <button class="btn" id="btnEndless2">♾ 进入无尽模式</button>
+        <button class="btn dim" id="btnEndMap">返回地图</button>
+      </div>
+    </div>
+
+    <!-- 暂停 -->
+    <div id="pause" class="panel">
+      <h2>⏸ 暂停</h2>
+      <div class="menu-btns">
+        <button class="btn" id="btnResume">▶ 继续战斗</button>
+        <button class="btn warn" id="btnRestart">↺ 重新开始本关</button>
+        <button class="btn dim" id="btnQuit">✖ 退出关卡</button>
+      </div>
+    </div>
+
+    <!-- 战斗内常驻退出按钮（触屏也能暂停/退出） -->
+    <button id="btnExit" class="btn small warn hidden" style="position:absolute;left:18px;bottom:14px;pointer-events:auto">⏸ 暂停 / 退出</button>
+
+    <div id="toast"></div>
+  </div>
+</div>
+<script>
+'use strict';
+window.__bootErr = [];
+window.addEventListener('error', function (e) { window.__bootErr.push(String(e.message || e)); });
+
+// ============================================================
+//  基础工具
+// ============================================================
+const CV = document.getElementById('cv'), CTX = CV.getContext('2d');
+const Wd = 1280, Ht = 720;
+const $ = id => document.getElementById(id);
+const show = (id, on) => $(id).classList.toggle('hidden', !on);
+function ri(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function shuffle(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { [a, b] = [b, a % b]; } return a || 1; }
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function lerp(a, b, t) { return a + (b - a) * t; }
+const SUPO = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '-': '⁻' };
+function sup(n) { return String(n).split('').map(c => SUPO[c] || c).join(''); }
+function fmt(n) { // 数字转整洁字符串（去多余小数尾零）
+  if (Number.isInteger(n)) return String(n);
+  return String(parseFloat(n.toFixed(6)));
+}
+function toast(msg, ms) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), ms || 1600);
+}
+
+// ============================================================
+//  存档
+// ============================================================
+const SAVE_KEY = 'math_save_v1';
+function defSave() {
+  return { v: 1, lv: 1, stars: {}, gold: 0, up: { hp: 0, sh: 0, t: 0, cb: 0, g: 0 }, wrong: [], set: { sfx: 1, bgm: 1 }, endBest: 0, seenW: 0 };
+}
+let SV = defSave();
+function loadSave() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (d && d.v === 1) {
+      const base = defSave();
+      SV = Object.assign(base, d);
+      SV.up = Object.assign(base.up, d.up || {});
+      SV.set = Object.assign(base.set, d.set || {});
+      SV.wrong = Array.isArray(d.wrong) ? d.wrong : [];
+      SV.stars = d.stars || {};
+    }
+  } catch (e) { /* 存档损坏则重置 */ }
+}
+function storeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SV)); } catch (e) { } }
+function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } SV = defSave(); }
+loadSave();
+// 派生数值（由强化等级计算）
+function heroMaxHp() { return 100 + SV.up.hp * 20; }
+function startShields() { return SV.up.sh; }
+function bonusTime() { return SV.up.t * 2; }
+function comboNeed() { return [5, 4, 3][SV.up.cb]; }
+function goldMult() { return 1 + SV.up.g * 0.25; }
+function heroTitle(lv) { return TITLES[clamp(Math.ceil(lv / 4) - 1, 0, 8)]; }
+const TITLES = ['数字学徒', '算术行者', '分数猎手', '大数领主', '方程术士', '比例贤者', '有理数骑士', '函数法师', '数学大师'];
+
+// ============================================================
+//  音频（WebAudio 程序化，无资源文件）
+// ============================================================
+let AC = null, BGM = { timer: 0, on: false, step: 0, next: 0 };
+function ac() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+  if (AC && AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(f0, f1, dur, type, vol, when, dest) {
+  const c = ac(); if (!c) return;
+  const t = c.currentTime + (when || 0);
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = type || 'sine'; o.frequency.setValueAtTime(f0, t);
+  if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol || 0.2, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(dest || c.destination);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+function noise(dur, vol, when) {
+  const c = ac(); if (!c) return;
+  const t = c.currentTime + (when || 0);
+  const len = Math.max(1, (dur * c.sampleRate) | 0);
+  const buf = c.createBuffer(1, len, c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const s = c.createBufferSource(), g = c.createGain();
+  s.buffer = buf; g.gain.value = vol || 0.2;
+  s.connect(g); g.connect(c.destination); s.start(t);
+}
+const SFX = {
+  click: () => tone(620, 880, 0.07, 'square', 0.12),
+  type: () => tone(760, 760, 0.03, 'square', 0.06),
+  cast: () => tone(480, 1300, 0.16, 'sawtooth', 0.1),
+  boom: () => { noise(0.28, 0.3); tone(150, 40, 0.3, 'sine', 0.34); },
+  hurt: () => tone(300, 90, 0.26, 'sawtooth', 0.3),
+  wrong: () => { tone(210, 160, 0.22, 'square', 0.16); tone(160, 120, 0.24, 'square', 0.14, 0.1); },
+  coin: () => { tone(920, 1400, 0.09, 'sine', 0.16); tone(1240, 1860, 0.1, 'sine', 0.13, 0.07); },
+  combo: () => tone(700, 1500, 0.13, 'triangle', 0.16),
+  shield: () => tone(720, 380, 0.22, 'triangle', 0.22),
+  up: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, f, 0.16, 'triangle', 0.2, i * 0.11)); },
+  star: () => tone(880, 1760, 0.2, 'sine', 0.16),
+  roar: () => { tone(110, 45, 0.7, 'sawtooth', 0.4); noise(0.55, 0.24); },
+  bossatk: () => { tone(220, 40, 0.5, 'sawtooth', 0.32); noise(0.4, 0.3); },
+  win: () => { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, f, 0.22, 'triangle', 0.2, i * 0.13)); },
+  lose: () => { [392, 330, 262, 196].forEach((f, i) => tone(f, f * 0.96, 0.26, 'sawtooth', 0.2, i * 0.16)); },
+};
+function sfx(n) { if (!SV.set.sfx || !SFX[n]) return; try { SFX[n](); } catch (e) { } }
+// 轻量 BGM：每世界一组五声音阶琶音
+const BGM_SCALES = [
+  [262, 294, 330, 392, 440], [294, 330, 349, 440, 494], [330, 370, 415, 494, 554],
+  [349, 392, 440, 523, 587], [392, 440, 494, 587, 659], [440, 494, 554, 659, 740],
+  [494, 554, 622, 740, 831], [523, 587, 659, 784, 880], [587, 659, 740, 880, 988],
+];
+function bgmStart(w) {
+  bgmStop();
+  if (!SV.set.bgm) return;
+  const c = ac(); if (!c) return;
+  BGM.on = true; BGM.step = 0; BGM.next = 0; BGM.scale = BGM_SCALES[w % 9];
+  BGM.timer = setInterval(() => {
+    if (!SV.set.bgm || !BGM.on) { bgmStop(); return; }
+    const cc = ac(); if (!cc) return;
+    if (cc.currentTime < BGM.next) return;
+    BGM.next = cc.currentTime + 0.32;
+    const sc = BGM.scale;
+    const seq = [0, 2, 4, 2, 1, 3, 4, 3];
+    const n = sc[seq[BGM.step % 8]] * (BGM.step % 16 >= 8 ? 0.5 : 1);
+    tone(n, n, 0.5, 'triangle', 0.045, 0);
+    if (BGM.step % 4 === 0) tone(n / 2, n / 2, 0.6, 'sine', 0.035, 0);
+    BGM.step++;
+  }, 120);
+}
+function bgmStop() { BGM.on = false; if (BGM.timer) { clearInterval(BGM.timer); BGM.timer = 0; } }
+
+// ============================================================
+//  世界与关卡数据
+// ============================================================
+const WORLDS = [
+  { name: '数字森林', grade: '一年级', scene: 'forest', accent: '#8fe06a',
+    sky: ['#bfe9a8', '#6cbf5e'], g1: '#4e9440', g2: '#376e2e',
+    minions: [{ n: '史莱姆', t: 'blob', c: '#7fd45e' }, { n: '蘑菇怪', t: 'mush', c: '#e05e5e' }, { n: '甲虫', t: 'beetle', c: '#8a6aea' }],
+    boss: { n: '迷雾树妖', t: 'tree', c: '#5a8a3a' },
+    story: '混沌之主偷走了真理之光，数字大陆陷入迷雾。小勇者，答对题目就能施放魔法，从数字森林出发吧！' },
+  { name: '乘法火山', grade: '二年级', scene: 'volcano', accent: '#ff9e5e',
+    sky: ['#5a3040', '#c25a3a'], g1: '#6a3a2a', g2: '#48251a',
+    minions: [{ n: '熔岩史莱姆', t: 'blob', c: '#ff8a3a' }, { n: '火蝙蝠', t: 'bat', c: '#c34a5e' }, { n: '石像鬼', t: 'golem', c: '#8a7a6a' }],
+    boss: { n: '熔岩巨兽', t: 'golem', c: '#e05a2a' },
+    story: '火山深处，乘法口诀的能量在岩浆中沸腾。混沌爪牙试图封锁九九表，用你的算力夺回来！' },
+  { name: '分数海湾', grade: '三年级', scene: 'bay', accent: '#6ad4e0',
+    sky: ['#a8e2f0', '#5aa8d8'], g1: '#e8d89a', g2: '#c9b26e',
+    minions: [{ n: '水母灵', t: 'jelly', c: '#8ad4ff' }, { n: '钳钳蟹', t: 'crab', c: '#ff7a5e' }, { n: '鱼人盗贼', t: 'imp', c: '#4aa8c9' }],
+    boss: { n: '深海海妖', t: 'kraken', c: '#3a7a9e' },
+    story: '分数海湾的潮汐记住了每一道算式。海妖搅乱了浪花里的数字，去让秩序重回海岸！' },
+  { name: '大数平原', grade: '四年级', scene: 'plain', accent: '#ffd94d',
+    sky: ['#ffe8b0', '#e8b06a'], g1: '#a8c45e', g2: '#7e9a3e',
+    minions: [{ n: '风隼', t: 'bird', c: '#c9a25e' }, { n: '数狼', t: 'wolf', c: '#8a8a9a' }, { n: '蛮角牛', t: 'beast', c: '#a05a3a' }],
+    boss: { n: '平原风暴龙', t: 'dragon', c: '#5e8ac9' },
+    story: '亿万粒尘埃在平原上汇成大数风暴。风暴龙盘旋而上，运算定律是平息它的咒语！' },
+  { name: '方程之塔', grade: '五年级', scene: 'tower', accent: '#c9a0ff',
+    sky: ['#4a3a6e', '#8a6ab0'], g1: '#5e5470', g2: '#3e3650',
+    minions: [{ n: '石偶守卫', t: 'golem', c: '#9a8a9e' }, { n: '书页妖', t: 'bat', c: '#c9a05e' }, { n: '独眼咒师', t: 'eye', c: '#c9a0ff' }],
+    boss: { n: '塔顶魔像', t: 'golem', c: '#8a5ec9' },
+    story: '方程之塔的每一层都锁着一道等式。天平两端保持平衡，钥匙就藏在未知数 x 里！' },
+  { name: '比例之环', grade: '六年级', scene: 'ring', accent: '#ffb0d4',
+    sky: ['#3a2a52', '#7a5a9e'], g1: '#5a4a6e', g2: '#3a2e4a',
+    minions: [{ n: '齿轮兽', t: 'gear', c: '#c9b06e' }, { n: '沙漏灵', t: 'imp', c: '#e0c98a' }, { n: '星环卫', t: 'eye', c: '#ffb0d4' }],
+    boss: { n: '时之沙皇', t: 'time', c: '#e0a84a' },
+    story: '巨大的比例之环悬在天际，环上流转着百分比与圆周率。沙皇想让时间失去比例，阻止他！' },
+  { name: '有理数峡谷', grade: '初一', scene: 'canyon', accent: '#ff8a8a',
+    sky: ['#8a5a4a', '#d8946a'], g1: '#a06a4a', g2: '#6e4430',
+    minions: [{ n: '影蝎', t: 'beetle', c: '#5a4a6e' }, { n: '岩蛇', t: 'snake', c: '#8a9a4a' }, { n: '峭壁鹰妖', t: 'bird', c: '#b05a4a' }],
+    boss: { n: '峡谷双头龙', t: 'dragon', c: '#c94a4a' },
+    story: '峡谷的风带着负号的寒意。有理数在崖壁两侧对峙，绝对值是你脚下的桥！' },
+  { name: '函数冰原', grade: '初二', scene: 'ice', accent: '#9ad8ff',
+    sky: ['#b8d8f0', '#7aa8d8'], g1: '#d8ecfa', g2: '#a8c8e4',
+    minions: [{ n: '冰晶精', t: 'jelly', c: '#b0e8ff' }, { n: '雪原狼', t: 'wolf', c: '#d8e8f0' }, { n: '霜钳蟹', t: 'crab', c: '#8ac9e8' }],
+    boss: { n: '冰原女巫', t: 'witch', c: '#7ab0e8' },
+    story: '冰原之下封印着勾股定理的古老力量。一次函数的斜坡通向女巫城堡，别在冰面上滑倒！' },
+  { name: '二次星空', grade: '初三', scene: 'star', accent: '#d4b0ff',
+    sky: ['#100a2e', '#3a2a6e'], g1: '#2a2050', g2: '#181236',
+    minions: [{ n: '虚空之眼', t: 'eye', c: '#c9a0ff' }, { n: '星屑兽', t: 'blob', c: '#8a7aff' }, { n: '引力蛹', t: 'void', c: '#5e4a9e' }],
+    boss: { n: '混沌之主', t: 'chaos', c: '#b04ae0' },
+    story: '真理之光的最后一簇火苗在星空深处摇曳。混沌之主亲自现身——这是成为数学大师的最终试炼！' },
+];
+
+const LEVELS = [
+  { w: 0, t: '初入森林 · 十以内加减', gens: ['add10', 'sub10', 'cmp10'], n: 10, tm: 22 },
+  { w: 0, t: '迷雾小径 · 二十以内加减', gens: ['add20', 'sub20', 'miss20'], n: 11, tm: 21 },
+  { w: 0, t: '林间智慧 · 图形与钟表', gens: ['shape1', 'clock1', 'seq1'], n: 12, tm: 20 },
+  { w: 0, t: 'BOSS · 迷雾树妖', gens: [], n: 8, tm: 20, boss: 8 },
+  { w: 1, t: '灰烬坡道 · 百以内加减', gens: ['add100', 'sub100'], n: 12, tm: 20 },
+  { w: 1, t: '熔岩洞窟 · 乘法口诀', gens: ['mul99', 'muladd'], n: 12, tm: 19 },
+  { w: 1, t: '火山口 · 除法与生活单位', gens: ['div99', 'times2', 'len2', 'angle2'], n: 13, tm: 18 },
+  { w: 1, t: 'BOSS · 熔岩巨兽', gens: [], n: 9, tm: 18, boss: 9 },
+  { w: 2, t: '银滩 · 万以内运算', gens: ['add1000', 'mul1d'], n: 12, tm: 18 },
+  { w: 2, t: '珊瑚礁 · 除法与分数初步', gens: ['div1dq', 'divrem', 'frac1', 'cmpfrac1', 'mulword'], n: 13, tm: 17 },
+  { w: 2, t: '灯塔岛 · 周长与面积', gens: ['perim', 'area', 'time3', 'mass3'], n: 14, tm: 17 },
+  { w: 2, t: 'BOSS · 深海海妖', gens: [], n: 10, tm: 16, boss: 10 },
+  { w: 3, t: '风语原 · 大数世界', gens: ['biground', 'unit4', 'bigcmp'], n: 13, tm: 16 },
+  { w: 3, t: '雷鸣台地 · 乘除进阶', gens: ['mul2d', 'div2dq'], n: 14, tm: 15 },
+  { w: 3, t: '望星坡 · 定律与小数', gens: ['law4', 'angle4', 'decadd', 'decmov'], n: 15, tm: 15 },
+  { w: 3, t: 'BOSS · 平原风暴龙', gens: [], n: 11, tm: 15, boss: 11 },
+  { w: 4, t: '符文回廊 · 小数乘除', gens: ['decmul', 'decdiv'], n: 14, tm: 15 },
+  { w: 4, t: '试炼之间 · 简易方程', gens: ['eq1', 'eq2', 'eq3'], n: 14, tm: 14 },
+  { w: 4, t: '星辉书库 · 因数与分数', gens: ['fac5', 'fracadd', 'fracadd2'], n: 15, tm: 14 },
+  { w: 4, t: 'BOSS · 塔顶魔像', gens: [], n: 12, tm: 14, boss: 12 },
+  { w: 5, t: '微光环带 · 分数乘除', gens: ['fracmul', 'fracdiv', 'ratio6'], n: 14, tm: 14 },
+  { w: 5, t: '双子罗盘 · 百分数与比例', gens: ['pct', 'prop', 'scale6'], n: 15, tm: 13 },
+  { w: 5, t: '圆之圣殿 · 圆与体积', gens: ['circle6', 'cyl6', 'cone6', 'neg6', 'stat6'], n: 15, tm: 13 },
+  { w: 5, t: 'BOSS · 时之沙皇', gens: [], n: 13, tm: 13, boss: 13 },
+  { w: 6, t: '裂谷栈道 · 有理数运算', gens: ['negadd', 'negmul', 'abs7'], n: 15, tm: 13 },
+  { w: 6, t: '风蚀岩层 · 整式加减', gens: ['algadd', 'algeval'], n: 15, tm: 12 },
+  { w: 6, t: '悬空石桥 · 一元一次方程', gens: ['lin1', 'lin2', 'linword', 'geo7', 'stat7'], n: 16, tm: 12 },
+  { w: 6, t: 'BOSS · 峡谷双头龙', gens: [], n: 14, tm: 12, boss: 14 },
+  { w: 7, t: '极光冰原 · 三角形与全等', gens: ['tri8', 'cong8'], n: 15, tm: 12 },
+  { w: 7, t: '霜之风谷 · 整式与因式', gens: ['pow8', 'pol8', 'fact8', 'fracsim8'], n: 16, tm: 12 },
+  { w: 7, t: '冰湖深处 · 函数与勾股', gens: ['linfun', 'pyth', 'ineq8'], n: 16, tm: 11 },
+  { w: 7, t: 'BOSS · 冰原女巫', gens: [], n: 15, tm: 11, boss: 15 },
+  { w: 8, t: '星屑航道 · 一元二次方程', gens: ['quad', 'quad2'], n: 16, tm: 11 },
+  { w: 8, t: '引力漩涡 · 二次函数', gens: ['quadfn'], n: 16, tm: 11 },
+  { w: 8, t: '真理圣殿 · 圆与相似', gens: ['circle9', 'sim9', 'trig9', 'sqrt9'], n: 17, tm: 10 },
+  { w: 8, t: 'FINAL · 混沌之主', gens: [], n: 17, tm: 10, boss: 17 },
+];
+// BOSS 关使用本世界全部生成器
+for (const L of LEVELS) if (L.boss) L.gens = [...new Set(LEVELS.filter(x => x.w === L.w && !x.boss).flatMap(x => x.gens))];
+// 世界解锁的最高关卡号
+function worldGens(w) { return [...new Set(LEVELS.filter(x => x.w === w && !x.boss).flatMap(x => x.gens))]; }
+function allGens() { return [...new Set(LEVELS.filter(x => !x.boss).flatMap(x => x.gens))]; }
+
+// ============================================================
+//  出题引擎框架
+// ============================================================
+const G = {}; // 生成器注册表：id -> () => 题目对象
+function reg(id, fn) { G[id] = fn; }
+// 题目对象：{t:题面, k:'in'|'ch', a:答案(输入题为字符串/选择题为下标), o:选项数组}
+function Q(t, a, h) { return { t: String(t), k: 'in', a: String(a), h: h || '' }; }
+function QC(t, a, ws, h) {
+  const opts = [String(a)];
+  for (const w of (ws || [])) { const s = String(w); if (!opts.includes(s)) opts.push(s); }
+  const sh = shuffle(opts);
+  return { t: String(t), k: 'ch', a: sh.indexOf(String(a)), o: sh, h: h || '' };
+}
+// 分数约分显示：fracStr(6,8)='3/4'；整数直接显示
+function fracStr(n, d) {
+  if (d < 0) { n = -n; d = -d; }
+  const g = gcd(n, d); n = Math.round(n / g); d = Math.round(d / g);
+  if (d === 1) return String(n);
+  return n + '/' + d;
+}
+
+// ============================================================
+//  世界一 · 数字森林（一年级）
+// ============================================================
+reg('add10', () => { const a = ri(1, 9), b = ri(1, 10 - a); return Q(`${a} + ${b} = ?`, a + b); });
+reg('sub10', () => { const a = ri(2, 10), b = ri(1, a - 1); return Q(`${a} − ${b} = ?`, a - b); });
+reg('cmp10', () => {
+  let a = ri(1, 10), b = ri(1, 10); if (a === b) b = b % 10 + 1;
+  const ans = a > b ? '>' : '<';
+  return QC(`比较大小：${a} ○ ${b}　（○ 里应填哪个符号？）`, ans, ['<', '=', a > b ? '<' : '>']);
+});
+reg('add20', () => { const a = ri(2, 9), b = ri(11 - a, 9); return Q(`${a} + ${b} = ?`, a + b); });
+reg('sub20', () => {
+  const a = ri(12, 18), ones = a - 10, b = ri(ones + 1, 9);
+  return Q(`${a} − ${b} = ?`, a - b);
+});
+reg('miss20', () => {
+  if (Math.random() < 0.5) { const a = ri(3, 15), c = ri(a + 2, Math.min(20, a + 9)); return Q(`${a} + □ = ${c} ，□ = ?`, c - a); }
+  const b = ri(4, 9), c = ri(3, 9); return Q(`□ − ${b} = ${c} ，□ = ?`, b + c);
+});
+reg('shape1', () => pick([
+  () => QC('下面哪种图形有 3 条边、3 个角？', '三角形', ['正方形', '圆形', '平行四边形']),
+  () => QC('四条边都一样长的图形是？', '正方形', ['长方形', '三角形', '圆形']),
+  () => QC('没有角、可以滚动的图形是？', '圆形', ['正方形', '三角形', '长方形']),
+  () => Q('长方形和正方形都有几条边？', 4),
+  () => Q('一个正方体有几个面？', 6),
+])());
+reg('clock1', () => {
+  const h = ri(1, 12);
+  return Math.random() < 0.6
+    ? Q(`钟面上分针指向 12、时针指向 ${h}，现在是几时？`, h)
+    : Q(`现在是 ${h} 时整，再过 1 小时是几时？`, h % 12 + 1);
+});
+reg('seq1', () => {
+  if (Math.random() < 0.7) { const s = ri(1, 9), d = pick([2, 3, 5]); return Q(`找规律填数：${s}, ${s + d}, ${s + 2 * d}, □ = ?`, s + 3 * d); }
+  const s = ri(30, 60), d = ri(2, 6); return Q(`找规律填数：${s}, ${s - d}, ${s - 2 * d}, □ = ?`, s - 3 * d);
+});
+
+// ============================================================
+//  世界二 · 乘法火山（二年级）
+// ============================================================
+reg('add100', () => { const a = ri(23, 77), b = ri(23, 100 - a); return Q(`${a} + ${b} = ?`, a + b); });
+reg('sub100', () => { const a = ri(45, 99), b = ri(12, a - 15); return Q(`${a} − ${b} = ?`, a - b); });
+reg('mul99', () => { const a = ri(2, 9), b = ri(2, 9); return Q(`${a} × ${b} = ?`, a * b); });
+reg('muladd', () => { const a = ri(2, 9), b = ri(2, 9), c = ri(2, 20); return Q(`${a} × ${b} + ${c} = ?`, a * b + c); });
+reg('div99', () => { const b = ri(2, 9), q = ri(2, 9); return Q(`${b * q} ÷ ${b} = ?`, q); });
+reg('times2', () => { const b = ri(2, 9), q = ri(2, 9); return Q(`${b} 的 ${q} 倍是多少？`, b * q); });
+reg('len2', () => {
+  const tb = [
+    ['1 米 = ? 厘米', 100], ['1 厘米 = ? 毫米', 10], ['100 厘米 = ? 米', 1], ['1 米 = ? 分米', 10],
+    ['1 时 = ? 分', 60], ['1 分 = ? 秒', 60], ['60 秒 = ? 分', 1], ['1 元 = ? 角', 10], ['10 角 = ? 元', 1],
+  ];
+  const p = pick(tb); return Q(p[0], p[1]);
+});
+reg('angle2', () => pick([
+  () => QC('角的大小与什么有关？', '两条边张开的程度', ['边的长短', '顶点的位置', '图形的颜色']),
+  () => Q('一个直角是多少度？', 90),
+  () => QC('所有的直角都一样大，对吗？', '对', ['不对', '无法比较']),
+  () => Q('一个三角板上有几个角？', 3),
+])());
+
+// ============================================================
+//  世界三 · 分数海湾（三年级）
+// ============================================================
+reg('add1000', () => {
+  const a = ri(120, 4800), b = ri(120, 4800), plus = Math.random() < 0.5;
+  return Q(`${a} ${plus ? '+' : '−'} ${b} = ?`, plus ? a + b : a - b);
+});
+reg('mul1d', () => { const a = ri(103, 987), b = ri(2, 9); return Q(`${a} × ${b} = ?`, a * b); });
+reg('div1dq', () => { const b = ri(2, 9), q = ri(21, 111); return Q(`${b * q} ÷ ${b} = ?`, q); });
+reg('divrem', () => {
+  const b = ri(3, 9), q = ri(3, 9), r = ri(1, b - 1);
+  return Math.random() < 0.5
+    ? Q(`${b * q + r} ÷ ${b} ，商是几？`, q)
+    : Q(`${b * q + r} ÷ ${b} ，余数是几？`, r);
+});
+reg('frac1', () => {
+  if (Math.random() < 0.55) { const d = pick([3, 4, 5, 6, 8]), n = ri(1, d - 1); return Q(`分数 ${n}/${d} 里有几个 1/${d} ？`, n); }
+  const d = pick([3, 4, 5, 6, 8]); return Q(`把一个圆平均分成 ${d} 份，每份是这个圆的几分之几？（如 1/4）`, `1/${d}`);
+});
+reg('cmpfrac1', () => {
+  if (Math.random() < 0.5) {
+    const d = pick([4, 5, 6, 8]); let a = ri(1, d - 1), b = ri(1, d - 1); if (a === b) b = b % (d - 1) + 1;
+    const hi = Math.max(a, b), lo = Math.min(a, b);
+    return QC(`${hi}/${d} 与 ${lo}/${d} 哪个更大？`, `${hi}/${d}`, [`${lo}/${d}`, '一样大']);
+  }
+  let a = ri(2, 9), b = ri(2, 9); if (a === b) b = b % 8 + 2;
+  const small = Math.min(a, b), big = Math.max(a, b);
+  return QC(`1/${a} 与 1/${b} 哪个更大？`, `1/${small}`, [`1/${big}`, '一样大']);
+});
+reg('mulword', () => {
+  const a = ri(3, 9), b = ri(4, 9);
+  return pick([
+    Q(`每盒有 ${a} 个苹果，${b} 盒一共有多少个苹果？`, a * b),
+    Q(`每辆手推车运 ${a} 箱货物，${b} 辆一共运多少箱？`, a * b),
+    Q(`苗圃里每行种 ${a} 棵树苗，种了 ${b} 行，一共多少棵？`, a * b),
+  ]);
+});
+reg('perim', () => {
+  if (Math.random() < 0.6) { const a = ri(3, 15), b = ri(2, a); return Q(`长方形长 ${a} 厘米、宽 ${b} 厘米，周长是多少厘米？`, 2 * (a + b)); }
+  const s = ri(2, 12); return Q(`正方形边长 ${s} 厘米，周长是多少厘米？`, 4 * s);
+});
+reg('area', () => {
+  if (Math.random() < 0.6) { const a = ri(3, 15), b = ri(2, a); return Q(`长方形长 ${a} 厘米、宽 ${b} 厘米，面积是多少平方厘米？`, a * b); }
+  const s = ri(2, 12); return Q(`正方形边长 ${s} 厘米，面积是多少平方厘米？`, s * s);
+});
+reg('time3', () => {
+  const tb = [['2 时 = ? 分', 120], ['3 分 = ? 秒', 180], ['1 时 20 分 = ? 分', 80], ['120 秒 = ? 分', 2], ['240 分 = ? 时', 4], ['2 时 30 分 = ? 分', 150]];
+  const p = pick(tb); return Q(p[0], p[1]);
+});
+reg('mass3', () => {
+  if (Math.random() < 0.7) { const tb = [['1 千克 = ? 克', 1000], ['5000 克 = ? 千克', 5], ['3 千克 = ? 克', 3000], ['8000 克 = ? 千克', 8]]; const p = pick(tb); return Q(p[0], p[1]); }
+  return QC('1 千克棉花和 1 千克铁相比，哪个重？', '一样重', ['棉花重', '铁重']);
+});
+
+// ============================================================
+//  世界四 · 大数平原（四年级）
+// ============================================================
+reg('biground', () => {
+  if (Math.random() < 0.6) {
+    const v = ri(11, 999) * 10000 + ri(1000, 9999);
+    return Q(`把 ${v} 四舍五入到万位，约等于多少万？`, Math.round(v / 10000));
+  }
+  const v = ri(11, 999) * 100000000 + ri(10000000, 99999999);
+  return Q(`把 ${v} 四舍五入到亿位，约等于多少亿？`, Math.round(v / 100000000));
+});
+reg('unit4', () => {
+  const tb = [
+    ['1 公顷 = ? 平方米', 10000], ['1 平方千米 = ? 公顷', 100], ['1 平方千米 = ? 平方米', 1000000],
+    ['30000 平方米 = ? 公顷', 3], ['5 公顷 = ? 平方米', 50000], ['2 平方千米 = ? 公顷', 200],
+  ];
+  const p = pick(tb); return Q(p[0], p[1]);
+});
+reg('bigcmp', () => {
+  const lens = shuffle([6, 7, 8, 9]);
+  const nums = lens.map(L => ri(2, 9) * Math.pow(10, L - 1) + ri(1, 9) * Math.pow(10, L - 2) * 10);
+  if (new Set(nums).size !== nums.length) return Q('比较大小：98760000 与 89990000，较大的数减去较小的数是多少？', 8770000);
+  const mx = Math.max(...nums);
+  return QC('下面哪个数最大？', fmt(mx), nums.filter(n => n !== mx).map(fmt));
+});
+reg('mul2d', () => { const a = ri(102, 987), b = ri(11, 89); return Q(`${a} × ${b} = ?`, a * b); });
+reg('div2dq', () => { const b = ri(11, 49), q = ri(11, 89); return Q(`${b * q} ÷ ${b} = ?`, q); });
+reg('law4', () => pick([
+  () => { const k = ri(2, 25); return Q(`简便计算：25 × ${4 * k} = ?`, 100 * k); },
+  () => { const k = ri(2, 12); return Q(`简便计算：125 × ${8 * k} = ?`, 1000 * k); },
+  () => { const a = ri(3, 29); return Q(`简便计算：${a} × 99 + ${a} = ?`, a * 100); },
+  () => { const b = ri(3, 9), c = ri(11, 89); return Q(`简便计算：${b}×${c} + ${b}×${100 - c} = ?`, b * 100); },
+  () => { const x = ri(11, 89), z = ri(11, 60); return Q(`简便计算：${x} + ${z} + ${100 - x} = ?`, 100 + z); },
+])());
+reg('angle4', () => pick([
+  () => Q('1 个平角是多少度？', 180),
+  () => Q('1 个周角是多少度？', 360),
+  () => Q('1 个周角等于几个直角？', 4),
+  () => Q('1 个平角等于几个直角？', 2),
+  () => { const a = ri(2, 8) * 10; return Q(`∠1 是 ${a}°，∠2 是 ∠1 的 3 倍，∠2 是多少度？`, a * 3); },
+  () => Q('钟面上时针走一大格（1 小时），转过多少度？', 30),
+])());
+reg('decadd', () => {
+  if (Math.random() < 0.5) { const a = ri(11, 99) / 10, b = ri(11, 99) / 10; return Q(`${fmt(a)} + ${fmt(b)} = ?`, fmt(a + b)); }
+  const a = ri(101, 999) / 100, b = ri(101, 999) / 100;
+  return Math.random() < 0.5
+    ? Q(`${fmt(a)} + ${fmt(b)} = ?`, fmt(a + b))
+    : Q(`${fmt(Math.max(a, b))} − ${fmt(Math.min(a, b))} = ?`, fmt(Math.abs(a - b)));
+});
+reg('decmov', () => {
+  const x = ri(11, 99) / 10;
+  return pick([
+    Q(`${fmt(x)} × 10 = ?`, fmt(x * 10)),
+    Q(`${fmt(x)} × 100 = ?`, fmt(x * 100)),
+    Q(`${fmt(x)} ÷ 10 = ?`, fmt(x / 10)),
+    Q(`${fmt(x)} ÷ 100 = ?`, fmt(x / 100)),
+  ]);
+});
+
+// ============================================================
+//  世界五 · 方程之塔（五年级）
+// ============================================================
+reg('decmul', () => {
+  if (Math.random() < 0.6) { const a = ri(11, 99) / 10, b = ri(2, 9); return Q(`${fmt(a)} × ${b} = ?`, fmt(a * b)); }
+  const a = ri(11, 99) / 10, b = ri(11, 99) / 10;
+  return Q(`${fmt(a)} × ${fmt(b)} = ?`, fmt(a * b));
+});
+reg('decdiv', () => {
+  const b = ri(3, 9), q = ri(2, 9), a = b * q / 10;
+  return Q(`${fmt(a)} ÷ ${b} = ?`, fmt(q / 10));
+});
+reg('eq1', () => {
+  const x = ri(2, 20), a = ri(2, 30);
+  return Math.random() < 0.5
+    ? Q(`解方程：x + ${a} = ${x + a} ，x = ?`, x)
+    : Q(`解方程：x − ${a} = ${x} ，x = ?`, x + a);
+});
+reg('eq2', () => {
+  const x = ri(2, 12), a = ri(2, 9);
+  return Math.random() < 0.5
+    ? Q(`解方程：${a}x = ${a * x} ，x = ?`, x)
+    : Q(`解方程：x ÷ ${a} = ${x} ，x = ?`, a * x);
+});
+reg('eq3', () => {
+  const x = ri(2, 12), a = ri(2, 9), b = ri(1, 20);
+  return Math.random() < 0.5
+    ? Q(`解方程：${a}x + ${b} = ${a * x + b} ，x = ?`, x)
+    : Q(`解方程：${a}x − ${b} = ${a * x - b} ，x = ?`, x);
+});
+reg('fac5', () => pick([
+  () => { const n = pick([12, 15, 16, 18, 20, 24, 28, 30]); let c = 0; for (let i = 1; i <= n; i++) if (n % i === 0) c++; return Q(`${n} 的因数一共有几个？`, c); },
+  () => QC('最小的质数是几？', 2, [0, 1, 3]),
+  () => Q('20 以内最大的质数是几？', 19),
+  () => QC('下面哪一组数全是质数？', '2、3、5、7', ['1、2、3、4', '4、6、8、9', '2、4、6、8']),
+  () => {
+    const k = ri(2, 5) * 3, wrongs = [];
+    for (let c = k + 1; wrongs.length < 3 && c < k + 12; c++) if (c % 3 !== 0) wrongs.push(c);
+    return QC('下面哪个数是 3 的倍数？', k, wrongs);
+  },
+  () => QC('偶数中唯一的质数是几？', 2, [4, 6, 8]),
+  () => QC('一个数只有 1 和它本身两个因数，它是？', '质数', ['合数', '偶数', '奇数']),
+])());
+reg('fracadd', () => {
+  const d = pick([4, 5, 6, 8, 10, 12]), n1 = ri(1, d - 2), n2 = ri(1, d - 1 - n1);
+  return Q(`${n1}/${d} + ${n2}/${d} = ? （用 a/b 表示）`, fracStr(n1 + n2, d));
+});
+reg('fracadd2', () => {
+  const pr = pick([[2, 3], [3, 4], [3, 5], [4, 5], [2, 5], [3, 8], [4, 7], [5, 6]]);
+  const a = pr[0], b = pr[1], n1 = ri(1, a - 1), n2 = ri(1, b - 1);
+  return Q(`${n1}/${a} + ${n2}/${b} = ? （用 a/b 表示）`, fracStr(n1 * b + n2 * a, a * b));
+});
+
+// ============================================================
+//  世界六 · 比例之环（六年级）
+// ============================================================
+reg('fracmul', () => {
+  if (Math.random() < 0.55) { const b = ri(3, 9), a = ri(1, b - 1), n = ri(2, 9); return Q(`${a}/${b} × ${n} = ? （用 a/b 表示）`, fracStr(a * n, b)); }
+  const b = ri(3, 9), a = ri(1, b - 1), d = ri(3, 9), c = ri(1, d - 1);
+  return Q(`${a}/${b} × ${c}/${d} = ? （用 a/b 表示）`, fracStr(a * c, b * d));
+});
+reg('fracdiv', () => {
+  if (Math.random() < 0.5) { const b = ri(3, 9), a = ri(1, b - 1), n = ri(2, 9); return Q(`${a}/${b} ÷ ${n} = ? （用 a/b 表示）`, fracStr(a, b * n)); }
+  const b = ri(3, 9), a = ri(1, b - 1), d = ri(2, 8), c = ri(1, d - 1) || 1;
+  return Q(`${a}/${b} ÷ ${c}/${d} = ? （用 a/b 表示）`, fracStr(a * d, b * c));
+});
+reg('ratio6', () => {
+  const pr = pick([[2, 3], [3, 4], [3, 5], [4, 5], [5, 6], [2, 5], [3, 8], [4, 7]]);
+  const k = ri(2, 9), x = pr[0], y = pr[1];
+  return Q(`化简比：${k * x} : ${k * y} = □ : ${y} ，□ = ?`, x);
+});
+reg('pct', () => pick([
+  () => { const base = pick([40, 60, 80, 120, 50, 200]), b = pick([20, 25, 50, 10, 40]); return Q(`${base} 的 ${b}% 是多少？`, base * b / 100); },
+  () => { const total = pick([4, 5, 10, 20, 25, 50]), part = ri(1, total - 1); return Q(`${part} 是 ${total} 的百分之几？`, part / total * 100); },
+  () => { const t = pick([['八折', 80], ['九折', 90], ['七五折', 75], ['半价（五折）', 50]]); return Q(`一件商品${t[0]}出售，售价是原价的百分之几？`, t[1]); },
+])());
+reg('prop', () => {
+  let a = 0, b = 0, c = 0, x = 0, tries = 0;
+  do { b = ri(2, 9); c = ri(2, 9); x = ri(2, 12); a = b * x / c; } while (!Number.isInteger(a) && ++tries < 99);
+  return Q(`解比例：${a} : x = ${b} : ${c} ，x = ?`, x);
+});
+reg('scale6', () => {
+  const sc = pick([100000, 200000, 50000]), s = ri(2, 9);
+  return Q(`地图比例尺是 1:${sc}，图上 ${s} 厘米代表实际多少千米？`, s * sc / 100000);
+});
+reg('circle6', () => {
+  const r = pick([2, 3, 5, 10]);
+  if (Math.random() < 0.55) return Q(`圆的半径是 ${r} 厘米，周长是多少厘米？（π 取 3.14）`, fmt(2 * 3.14 * r));
+  return Q(`圆的半径是 ${r} 厘米，面积是多少平方厘米？（π 取 3.14）`, fmt(3.14 * r * r));
+});
+reg('cyl6', () => {
+  const r = pick([2, 3, 5]), h = ri(2, 10);
+  return Q(`圆柱底面半径 ${r} 厘米、高 ${h} 厘米，体积是多少立方厘米？（π 取 3.14）`, fmt(3.14 * r * r * h));
+});
+reg('cone6', () => {
+  const p = pick([[3, 3], [3, 6], [6, 3], [3, 9], [6, 6]]);
+  return Q(`圆锥底面半径 ${p[0]} 厘米、高 ${p[1]} 厘米，体积是多少立方厘米？（π 取 3.14）`, fmt(3.14 * p[0] * p[0] * p[1] / 3));
+});
+reg('neg6', () => pick([
+  () => { const t = ri(2, 9), up = ri(1, 12); return Q(`气温是 −${t}℃，上升 ${up}℃ 后是多少℃？`, up - t); },
+  () => { const a = ri(2, 9), b = ri(2, 9); return QC(`−${a} 与 ${b} 哪个数大？`, `${b}`, [`−${a}`, '一样大']); },
+  () => { const d = ri(2, 9), h = ri(2, 9); return Q(`潜水员在 −${d} 米处，上浮 ${d + h} 米后海拔是多少米？`, h); },
+  () => { const t = ri(2, 9); return Q(`数轴上从 −${t} 出发向右移动 ${t + 5} 个单位，到达的数是多少？`, 5); },
+])());
+reg('stat6', () => {
+  const m = ri(4, 15);
+  const arr = shuffle([m - 2, m - 1, m, m + 1, m + 2]);
+  return pick([
+    () => Q(`数据 ${arr.join('、')} 的平均数是多少？`, m),
+    () => Q(`数据 ${arr.join('、')} 的中位数是多少？`, m),
+    () => {
+      const a = ri(2, 9);
+      const ws = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].filter(v => v !== a)).slice(0, 3);
+      const s2 = shuffle([a, a, ws[0], ws[1], ws[2]]);
+      return QC(`数据 ${s2.join('、')} 的众数是多少？`, a, ws);
+    },
+  ])();
+});
+
+// ============================================================
+//  世界七 · 有理数峡谷（初一）
+// ============================================================
+reg('negadd', () => pick([
+  () => { const a = ri(2, 12), b = ri(2, 12); return Q(`(−${a}) + (−${b}) = ?`, -(a + b)); },
+  () => { const a = ri(3, 15), b = ri(2, a - 1); return Q(`(−${a}) + ${b} = ?`, b - a); },
+  () => { const a = ri(2, 12), b = ri(2, 12); return Q(`${a} − (−${b}) = ?`, a + b); },
+  () => { const a = ri(2, 12), b = ri(2, 12); return Q(`(−${a}) − ${b} = ?`, -(a + b)); },
+  () => { const a = ri(2, 9), b = ri(2, 9), c = ri(1, 9); return Q(`(−${a}) × ${b} + ${c} = ?`, c - a * b); },
+])());
+reg('negmul', () => pick([
+  () => { const a = ri(2, 9), b = ri(2, 9); return Q(`(−${a}) × ${b} = ?`, -a * b); },
+  () => { const a = ri(2, 9), b = ri(2, 9); return Q(`(−${a}) × (−${b}) = ?`, a * b); },
+  () => { const q = ri(2, 9), b = ri(2, 5), a = q * b; return Q(`(−${a}) ÷ ${b} = ?`, -q); },
+  () => { const a = ri(2, 5); return Q(`(−${a})³ = ?`, -(a * a * a)); },
+])());
+reg('abs7', () => pick([
+  () => { const a = ri(2, 12), b = ri(2, 12); return Q(`|−${a}| + |−${b}| = ?`, a + b); },
+  () => { const a = ri(2, 9), b = a + ri(1, 9); return Q(`|${a} − ${b}| = ?`, b - a); },
+  () => { const a = ri(3, 12); return QC(`若 |x| = ${a}，则 x = ?`, `±${a}`, [String(a), `−${a}`, '0']); },
+  () => { const a = ri(2, 9), b = ri(2, 9); return Q(`|(−${a}) × ${b}| = ?`, a * b); },
+])());
+reg('algadd', () => {
+  const c1 = ri(2, 9), c2 = ri(2, 9); let c3 = ri(1, c1 + c2 - 1);
+  const v = pick(['a', 'x', 'm']);
+  return Q(`${c1}${v} + ${c2}${v} − ${c3}${v} = □${v} ，□ = ?`, c1 + c2 - c3);
+});
+reg('algeval', () => {
+  const x = pick([-2, -1, 2, 3]), a = ri(1, 4), b = ri(1, 5), c = ri(1, 9);
+  return Q(`当 x = ${x} 时，代数式 ${a}x² − ${b}x + ${c} 的值是多少？`, a * x * x - b * x + c);
+});
+reg('lin1', () => {
+  const x = ri(2, 9), a = ri(2, 9), b = ri(1, 9);
+  return Math.random() < 0.5
+    ? Q(`解方程：${a}(x + ${b}) = ${a * (x + b)} ，x = ?`, x)
+    : Q(`解方程：${a}(x − ${b}) = ${a * (x - b)} ，x = ?`, x);
+});
+reg('lin2', () => {
+  let a = 0, b = 0, c = 0, x = 0, tries = 0;
+  do { b = ri(2, 6); c = ri(2, 9); x = ri(2, 12); a = b * c - x; } while ((a < 1 || a > 30) && ++tries < 99);
+  return Q(`解方程：(x + ${a}) ÷ ${b} = ${c} ，x = ?`, x);
+});
+reg('linword', () => {
+  const x = ri(2, 12), a = ri(2, 9), b = ri(1, 20);
+  return Q(`一个数的 ${a} 倍加上 ${b} 等于 ${a * x + b}，求这个数。`, x);
+});
+reg('geo7', () => pick([
+  () => { const a = ri(2, 8) * 10; return Q(`∠α 与 ∠β 互余，∠α = ${a}°，∠β 是多少度？`, 90 - a); },
+  () => { const a = ri(3, 16) * 10; return Q(`∠α 与 ∠β 互补，∠α = ${a}°，∠β 是多少度？`, 180 - a); },
+  () => QC('两条直线相交，对顶角相等吗？', '相等', ['不相等', '无法确定']),
+  () => QC('两点之间的所有连线中，最短的是？', '线段', ['直线', '射线', '曲线']),
+  () => Q('∠AOB = 30°，它的补角是多少度？', 150),
+])());
+reg('stat7', () => pick([
+  () => QC('要调查全国中学生的睡眠时间，适合采用哪种方式？', '抽样调查', ['全面调查（普查）', '随便问问', '实验调查']),
+  () => QC('要了解本班同学的生日，适合采用哪种方式？', '全面调查（普查）', ['抽样调查', '网上搜索', '实验调查']),
+  () => QC('为了解一批灯泡的寿命，适合采用哪种方式？', '抽样调查', ['全面调查（普查）', '一个不测', '打电话问']),
+])());
+
+// ============================================================
+//  世界八 · 函数冰原（初二）
+// ============================================================
+reg('tri8', () => pick([
+  () => { const a = ri(3, 7) * 10, b = ri(2, 7) * 10; return Q(`三角形两个内角分别为 ${a}° 和 ${b}°，第三个内角是多少度？`, 180 - a - b); },
+  () => Q('三角形的一个外角是 120°，与它不相邻的两个内角的和是多少度？', 120),
+  () => Q('等边三角形的每个内角是多少度？', 60),
+  () => Q('直角三角形的两个锐角的和是多少度？', 90),
+  () => Q('三角形内角和是多少度？', 180),
+])());
+reg('cong8', () => pick([
+  () => QC('两个三角形的三边分别对应相等，判定全等的依据是？', 'SSS（边边边）', ['SAS（边角边）', 'ASA（角边角）', 'AAS（角角边）']),
+  () => QC('两边及其夹角对应相等的两个三角形全等，依据是？', 'SAS（边角边）', ['SSS（边边边）', 'ASA（角边角）', 'AAS（角角边）']),
+  () => QC('两个直角三角形的斜边和一条直角边分别对应相等，全等的依据是？', 'HL', ['SSS（边边边）', 'SAS（边角边）', 'ASA（角边角）']),
+  () => QC('等腰三角形是轴对称图形吗？', '是', ['不是', '不确定']),
+  () => Q('一个三角形最多有几个直角？', 1),
+])());
+reg('pow8', () => pick([
+  () => Q('a³ · a² = aⁿ ，n = ?', 5),
+  () => Q('(a²)³ = aⁿ ，n = ?', 6),
+  () => Q('a⁶ ÷ a² = aⁿ ，n = ?', 4),
+  () => { const a = ri(2, 4); return Q(`${a}³ × ${a}² = ?`, Math.pow(a, 5)); },
+  () => Q('(−3)² = ?', 9),
+  () => Q('(−2)³ = ?', -8),
+])());
+reg('pol8', () => {
+  const a = ri(1, 9), b = ri(1, 9);
+  return Q(`(x + ${a})(x + ${b}) 展开后，x 项的系数是多少？`, a + b);
+});
+reg('fact8', () => pick([
+  () => QC('x² − 9 因式分解的结果是？', '(x+3)(x−3)', ['(x+3)²', '(x−3)²', 'x(x−9)']),
+  () => QC('x² + 6x + 9 因式分解的结果是？', '(x+3)²', ['(x+3)(x−3)', '(x+1)(x+9)', 'x(x+6)']),
+  () => QC('x² − 5x + 6 因式分解的结果是？', '(x−2)(x−3)', ['(x−2)(x+3)', '(x+1)(x−6)', '(x−5)(x+1)']),
+  () => QC('x² + 4x + 4 因式分解的结果是？', '(x+2)²', ['(x+2)(x−2)', '(x+1)(x+4)', 'x(x+4)']),
+])());
+reg('fracsim8', () => pick([
+  () => QC('分式 (x²−1)/(x+1) 化简的结果是？', 'x−1', ['x+1', 'x²−1', '1/(x+1)']),
+  () => QC('分式 (x²+2x)/x 化简的结果是？', 'x+2', ['x+2x', '2', 'x/2']),
+])());
+reg('linfun', () => pick([
+  () => { const k = ri(2, 6), b = ri(1, 9); return Q(`一次函数 y = ${k}x + ${b} 的图象与 y 轴交点的纵坐标是多少？`, b); },
+  () => { const k = ri(1, 4), b = ri(1, 6); return Q(`一次函数图象经过点 (1, ${k + b}) 和 (2, ${2 * k + b})，k = ?`, k); },
+  () => QC('一次函数 y = −2x + 5 中，y 随 x 增大而？', '减小', ['增大', '不变', '先增后减']),
+  () => Q('一次函数 y = 3x − 6 的图象与 x 轴交点的横坐标是多少？', 2),
+])());
+reg('pyth', () => {
+  const tr = pick([[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25], [9, 12, 15], [6, 8, 10]]);
+  const k = ri(1, 2), a = tr[0] * k, b = tr[1] * k, c = tr[2] * k;
+  return Math.random() < 0.6
+    ? Q(`直角三角形的两条直角边分别为 ${a} 和 ${b}，斜边是多少？`, c)
+    : Q(`直角三角形的斜边为 ${c}，一条直角边为 ${a}，另一条直角边是多少？`, b);
+});
+reg('ineq8', () => pick([
+  () => Q('不等式 2x − 4 > 0 的最小整数解是多少？', 3),
+  () => Q('不等式 3x ≤ 12 的最大整数解是多少？', 4),
+  () => QC('不等式 −2x < 6 的解集是？', 'x > −3', ['x < −3', 'x > 3', 'x < 3']),
+  () => { const a = ri(2, 5), q = ri(2, 6); return Q(`不等式 ${a}x ≤ ${a * q} 的最大整数解是多少？`, q); },
+])());
+
+// ============================================================
+//  世界九 · 二次星空（初三）
+// ============================================================
+function term(c, v) { // 组装多项式项：c=0 省略，正数带 +
+  if (c === 0) return '';
+  const sign = c > 0 ? ' + ' : ' − ';
+  return sign + Math.abs(c) + v;
+}
+reg('quad', () => {
+  let r1 = ri(-9, 9), r2 = ri(-9, 9);
+  if (r1 === r2) r2 = r2 === 9 ? -9 : r2 + 1;
+  const b = -(r1 + r2), c = r1 * r2;
+  const hi = Math.max(r1, r2), lo = Math.min(r1, r2);
+  return Math.random() < 0.5
+    ? Q(`解方程：x²${term(b, '')}${term(c, '')} = 0 ，较大的根 x = ?`, hi)
+    : Q(`解方程：x²${term(b, '')}${term(c, '')} = 0 ，较小的根 x = ?`, lo);
+});
+reg('quad2', () => {
+  const kind = pick(['two', 'two', 'one', 'none']); // 判别式>0/＝0/<0，直接构造保证标签正确
+  const opts = ['有两个不相等的实数根', '有两个相等的实数根', '没有实数根'];
+  if (kind === 'none') {
+    const c = ri(1, 6);
+    return QC(`一元二次方程 x² + ${c} = 0 的根的情况是？`, '没有实数根', opts.filter(o => o !== '没有实数根'));
+  }
+  if (kind === 'one') {
+    const r = ri(-4, 4), b = -2 * r, c = r * r;
+    return QC(`一元二次方程 x²${term(b, '')}${term(c, '')} = 0 的根的情况是？`, '有两个相等的实数根', opts.filter(o => o !== '有两个相等的实数根'));
+  }
+  let r1 = ri(-6, 6), r2 = ri(-6, 6);
+  if (r1 === r2) r2 = r2 === 6 ? -6 : r2 + 1;
+  const b = -(r1 + r2), c = r1 * r2;
+  return QC(`一元二次方程 x²${term(b, '')}${term(c, '')} = 0 的根的情况是？`, '有两个不相等的实数根', opts.filter(o => o !== '有两个不相等的实数根'));
+});
+reg('quadfn', () => {
+  const h = ri(-4, 4), k = ri(-4, 4);
+  const p = -2 * h, q = h * h + k;
+  const axisWrong = (() => { // 保证干扰项互不相同且都不同于答案
+    const ws = [];
+    for (const v of [-h, k, h / 2, h + 2, -h - 1, 1, -1, 3]) {
+      const s = `x = ${v}`;
+      if (s !== `x = ${h}` && !ws.includes(s)) ws.push(s);
+      if (ws.length >= 3) break;
+    }
+    return ws;
+  })();
+  return pick([
+    () => Q(`二次函数 y = x²${term(p, 'x')}${term(q, '')}，顶点的横坐标是多少？`, h),
+    () => QC(`二次函数 y = x²${term(p, 'x')}${term(q, '')}的对称轴是？`, `x = ${h}`, axisWrong),
+    () => Q(`二次函数 y = x²${term(p, 'x')}${term(q, '')}的最小值是多少？`, k),
+    () => QC(`二次函数 y = x²${term(p, 'x')}${term(q, '')}的开口方向是？`, '向上', ['向下', '向左', '向右']),
+  ])();
+});
+reg('circle9', () => pick([
+  () => { const t = pick([[5, 3, 4], [13, 5, 12], [10, 6, 8], [13, 12, 5], [5, 4, 3]]); return Q(`⊙O 的半径为 ${t[0]}，一条弦的弦心距为 ${t[1]}，这条弦的弦长是多少？`, 2 * t[2]); },
+  () => { const n = pick([60, 80, 100, 120, 140]); return Q(`圆心角为 ${n}°，它所对的圆周角是多少度？`, n / 2); },
+  () => Q('直径所对的圆周角是多少度？', 90),
+])());
+reg('sim9', () => { const a = ri(2, 5); return Q(`两个相似三角形的相似比为 ${a} : 4，它们的面积比是 □ : 16 ，□ = ?`, a * a); });
+reg('trig9', () => pick([
+  () => Q('sin 30° = ?（可填小数或分数）', '0.5'),
+  () => Q('cos 60° = ?（可填小数或分数）', '0.5'),
+  () => Q('tan 45° = ?', 1),
+  () => QC('sin 45° = ?', '√2/2', ['√3/2', '1/2', '1']),
+  () => QC('sin 60° = ?', '√3/2', ['√2/2', '1/2', '1']),
+  () => QC('cos 30° = ?', '√3/2', ['√2/2', '1/2', '1']),
+  () => QC('tan 60° = ?', '√3', ['√2', '√3/2', '1']),
+])());
+reg('sqrt9', () => pick([
+  () => { const k = ri(2, 6); return Q(`√${k * k * 3} = □√3 ，□ = ?`, k); },
+  () => { const k = ri(2, 6); return Q(`√${3 * k * k} × √3 = ?`, 3 * k); },
+  () => { const a = ri(2, 9); return Q(`(√${a})² = ?`, a); },
+  () => { const a = ri(2, 5); return Q(`${a}√2 × √2 = ?`, a * 2); },
+])());
+reg('prob9', () => pick([
+  () => QC('掷一枚均匀骰子，掷出质数点的概率是？', '1/2', ['1/3', '1/6', '2/3']),
+  () => { const r = ri(1, 4), b = ri(1, 3); return QC(`袋中有 ${r} 个红球、${b} 个蓝球，任意摸出一个，摸到红球的概率是？`, `${r}/${r + b}`, [`${b}/${r + b}`, `${r}/${r + b + 1}`, `1/${r + b}`]); },
+  () => QC('同时抛两枚均匀硬币，两枚都正面朝上的概率是？', '1/4', ['1/2', '1/3', '3/4']),
+  () => QC('从 1~10 中随机取一个数，取到 3 的倍数的概率是？', '3/10', ['1/10', '1/5', '3/5']),
+])());
+reg('rot9', () => pick([
+  () => QC('图形旋转后，对应点到旋转中心的距离？', '相等', ['变大', '变小', '不确定']),
+  () => QC('旋转不改变图形的？', '形状和大小', ['位置', '方向', '角度']),
+  () => Q('一个图形绕定点旋转多少度后回到原来的位置？', 360),
+])());
+
+// ============================================================
+//  判分
+// ============================================================
+function parseNum(s) {
+  if (s == null) return null;
+  s = String(s).trim().replace(/−/g, '-').replace(/，/g, '').replace(/\s+/g, '');
+  if (s === '') return null;
+  let m = s.match(/^(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)$/);
+  if (m) { const b = parseFloat(m[2]); if (!b) return null; return parseFloat(m[1]) / b; }
+  m = s.match(/^[+-]?(\d+\.?\d*|\.\d+)$/);
+  if (m) return parseFloat(s);
+  return null;
+}
+function isRight(q, raw) {
+  if (q.k === 'ch') return String(raw) === String(q.a);
+  const v = parseNum(raw), a = parseNum(q.a);
+  return v !== null && a !== null && Math.abs(v - a) < 1e-6;
+}
+function ansText(q) { return q.k === 'ch' ? q.o[q.a] : q.a; }
+
+// ============================================================
+//  运行状态
+// ============================================================
+let VIEW = { mode: 'menu', paused: false };
+let B = null; // 战斗状态
+const SPAWN_X = 940, HIT_X = 335, GROUND_Y = 566, HERO_X = 195, PORTAL_X = 880, BOSS_X = 740;
+
+// 生成一道题（避免与上一题同源，带形状校验）
+function makeQ(pool, lastSrc) {
+  for (let i = 0; i < 8; i++) {
+    const id = pool.length > 1 && lastSrc ? pick(pool.filter(g => g !== lastSrc)) : pick(pool);
+    const fn = G[id];
+    if (!fn) continue;
+    let q = null;
+    try { q = fn(); } catch (e) { q = null; }
+    if (!q || typeof q.t !== 'string' || !q.t) continue;
+    if (q.k === 'ch') { if (!Array.isArray(q.o) || q.o.length < 2 || q.a < 0 || q.a >= q.o.length) continue; }
+    else { if (parseNum(q.a) === null) continue; q.k = 'in'; }
+    q.src = id;
+    return q;
+  }
+  return Q('1 + 1 = ?', 2);
+}
+
+function startLevel(n) {
+  const L = LEVELS[n - 1];
+  const w = WORLDS[L.w];
+  ac(); // 解锁音频
+  B = {
+    n, lv: n, L, w, endless: false,
+    qs: [], qi: -1, lastSrc: '',
+    hero: { hp: heroMaxHp(), max: heroMaxHp(), shield: startShields(), combo: 0, maxCombo: 0, castT: 0, hurtT: 0 },
+    enemy: null, boss: null,
+    parts: [], projs: [], texts: [], coins: [],
+    shake: 0, lock: false, lockT: 0, phase: '',
+    goldRun: 0, right: 0, wrongCount: 0, streak: 0, res: [], lastRight: false,
+    inVal: '', over: false, win: false, t: 0, flashT: 0, flashC: '#fff',
+    deco: buildDeco(L.w), ambT: 0,
+  };
+  if (L.boss) B.boss = { hp: L.boss, max: L.boss, charge: 0, cd: Math.max(12, 20 - L.w), atkT: -1 };
+  VIEW.mode = 'battle'; VIEW.paused = false;
+  hideAllPanels();
+  show('btnExit', true);
+  bgmStart(L.w);
+  nextEnemy();
+}
+function startEndless() {
+  ac();
+  B = {
+    n: 0, lv: 37, L: null, w: WORLDS[0], endless: true,
+    qs: [], qi: -1, lastSrc: '',
+    hero: { hp: heroMaxHp(), max: heroMaxHp(), shield: startShields(), combo: 0, maxCombo: 0, castT: 0, hurtT: 0 },
+    enemy: null, boss: null,
+    parts: [], projs: [], texts: [], coins: [],
+    shake: 0, lock: false, lockT: 0, phase: '',
+    goldRun: 0, right: 0, wrongCount: 0, streak: 0, res: [], lastRight: false, best: SV.endBest,
+    inVal: '', over: false, win: false, t: 0, flashT: 0, flashC: '#fff',
+    deco: buildDeco(0), ambT: 0,
+  };
+  VIEW.mode = 'battle'; VIEW.paused = false;
+  hideAllPanels();
+  show('btnExit', true);
+  bgmStart(0);
+  nextEnemy();
+}
+function endlessWorld() { return WORLDS[Math.floor(B.streak / 5) % 9]; }
+
+function currentQ() { return B.qs[B.qi]; }
+
+function pushQ() {
+  let pool;
+  if (B.endless) pool = allGens().concat(['prob9', 'rot9']);
+  else if (B.L.boss) pool = B.n === 36 ? B.L.gens.concat(['prob9', 'rot9']) : B.L.gens;
+  else pool = B.L.gens;
+  B.qs.push(makeQ(pool, B.lastSrc));
+  B.lastSrc = B.qs[B.qs.length - 1].src;
+}
+
+function nextEnemy() {
+  if (B.over) return;
+  if (!B.endless && !B.L.boss && B.qi + 1 >= B.L.n) { victory(); return; }
+  B.qi++;
+  if (B.qi >= B.qs.length) pushQ();
+  const q = currentQ();
+  B.inVal = '';
+  B.lock = false; B.phase = 'walk';
+  if (B.boss) {
+    // BOSS 关：BOSS 常驻，无需新敌人
+    B.boss.idleT = 0;
+  } else {
+    const kinds = B.endless ? endlessWorld().minions : B.w.minions;
+    const mk = pick(kinds);
+    const tm = B.endless ? clamp(17 - B.streak * 0.12, 9, 20) : (B.L.tm + bonusTime());
+    B.enemy = {
+      kind: mk, x: SPAWN_X, speed: (SPAWN_X - HIT_X) / tm,
+      state: 'walk', t: 0, dieT: 0, hitFlash: 0,
+    };
+  }
+  updateAnswerUI(q);
+}
+
+function updatePadDisp() {
+  const d = $('padDisp');
+  d.classList.remove('err');
+  if (B.inVal) { d.textContent = B.inVal; d.style.color = ''; }
+  else { d.textContent = '输入答案…'; d.style.color = '#6a7a5a'; }
+}
+function updateAnswerUI(q) {
+  const inq = q.k === 'in';
+  show('pad', inq); show('choices', !inq);
+  if (inq) updatePadDisp();
+  else buildChoiceBtns(q);
+}
+function buildChoiceBtns(q) {
+  const box = $('choices'); box.innerHTML = '';
+  q.o.forEach((op, i) => {
+    const b = document.createElement('button');
+    b.className = 'chbtn'; b.dataset.i = i;
+    b.innerHTML = `<span class="chkey">${i + 1}</span>${op}`;
+    b.onclick = () => submit(String(i));
+    box.appendChild(b);
+  });
+}
+
+// ============ 作答与结算 ============
+function submit(raw) {
+  if (!B || B.lock || B.over || VIEW.paused) return;
+  const q = currentQ(); if (!q) return;
+  const correct = isRight(q, raw);
+  if (q.k === 'ch') {
+    const btns = $('choices').querySelectorAll('.chbtn');
+    btns.forEach((b, i) => {
+      b.disabled = true;
+      if (i === q.a) b.classList.add('ok');
+      if (i === Number(raw) && !correct) b.classList.add('no');
+    });
+  }
+  if (correct) onRight(q); else onWrong(q, raw);
+}
+
+function onRight(q) {
+  B.right++; B.streak++; B.res[B.qi] = 'r'; B.lastRight = true;
+  B.hero.combo++; B.hero.maxCombo = Math.max(B.hero.maxCombo, B.hero.combo);
+  B.hero.castT = 0.5; B.lock = true; B.phase = 'cast';
+  sfx('cast');
+  const tgt = bossTarget();
+  B.projs.push({ x: HERO_X + 78, y: GROUND_Y - 128, tx: tgt.x, ty: tgt.y - 60, t: 0, dur: 0.3 });
+  let g = (B.endless ? 5 : 3 + B.L.w) + 1;
+  if (B.hero.combo >= comboNeed()) { g += 3; sfx('combo'); addText(HERO_X + 60, GROUND_Y - 230, `连击 ×${B.hero.combo}！`, '#ffd94d', 26); }
+  B.goldRun += g;
+}
+function bossTarget() {
+  if (B.boss) return { x: BOSS_X, y: GROUND_Y };
+  return { x: B.enemy.x, y: GROUND_Y };
+}
+function projHit() { // 火球命中目标
+  const tgt = B.boss ? { x: BOSS_X, y: GROUND_Y - 70 } : { x: B.enemy.x, y: GROUND_Y - 60 };
+  sfx('boom');
+  boom(tgt.x, tgt.y, B.boss ? '#ffb05e' : '#ffd94d');
+  addText(tgt.x, tgt.y - 70, '✦ 命中', '#9ade54', 30);
+  spawnCoins(tgt.x, tgt.y - 40, B.hero.combo >= comboNeed() ? 4 : 2);
+  sfx('coin');
+  if (B.boss) {
+    const dmg = B.hero.combo >= comboNeed() ? 2 : 1;
+    B.boss.hp -= dmg; B.boss.hitFlash = 0.4;
+    B.boss.charge = Math.max(0, B.boss.charge - 0.18);
+    B.shake = Math.max(B.shake, 8);
+    if (B.boss.hp <= 0) { B.boss.hp = 0; B.phase = 'bossdie'; B.lockT = 0; return; }
+  } else {
+    B.enemy.state = 'die'; B.enemy.dieT = 0;
+  }
+  B.lockT = 0.62; B.phase = 'after';
+}
+function onWrong(q, raw) {
+  B.wrongCount++; B.streak = 0; B.hero.combo = 0; B.hero.hurtT = 0.6;
+  B.res[B.qi] = 'w'; B.lastRight = false;
+  recordWrong(q);
+  sfx('wrong');
+  if (q.k === 'in') { $('padDisp').classList.add('err'); }
+  // 敌人扑击
+  if (B.boss) {
+    bossStrike(14 + B.L.w * 3);
+    B.lock = true; B.lockT = 0.95; B.phase = 'after';
+  } else {
+    B.enemy.state = 'atk'; B.enemy.t = 0;
+    B.lock = true; B.lockT = 1.0; B.phase = 'after';
+  }
+}
+function enemyHitHero(dmg) {
+  if (B.hero.shield > 0) {
+    B.hero.shield--; sfx('shield');
+    addText(HERO_X + 40, GROUND_Y - 190, '🛡 格挡！', '#8ad4ff', 28);
+    B.shake = Math.max(B.shake, 6);
+    return;
+  }
+  B.hero.hp = Math.max(0, B.hero.hp - dmg);
+  sfx('hurt');
+  addText(HERO_X + 40, GROUND_Y - 190, `−${dmg}`, '#ff7a5e', 30);
+  B.shake = Math.max(B.shake, 14);
+  B.flashT = 0.25; B.flashC = 'rgba(255,40,20,.28)';
+  if (B.hero.hp <= 0) defeat();
+}
+function bossStrike(dmg) {
+  sfx('bossatk'); B.shake = Math.max(B.shake, 18);
+  enemyHitHero(dmg);
+}
+function recordWrong(q) {
+  SV.wrong.unshift({ t: q.t, a: ansText(q), lv: B.endless ? '无尽' : B.n, ts: Date.now() });
+  if (SV.wrong.length > 60) SV.wrong.length = 60;
+}
+
+// ============ 胜负 ============
+function victory() {
+  if (B.over) return;
+  B.over = true; B.win = true; B.resultT = 1.1;
+  show('pad', false); show('choices', false); show('btnExit', false);
+  bgmStop(); sfx('win');
+  for (let i = 0; i < 26; i++) boom(ri(200, 1080), ri(120, 420), pick(['#ffd94d', '#9ade54', '#8ad4ff', '#ff9e5e']), 1);
+}
+function defeat() {
+  if (B.over) return;
+  B.over = true; B.win = false; B.resultT = 0.9;
+  show('pad', false); show('choices', false); show('btnExit', false);
+  bgmStop(); sfx('lose');
+}
+function starsOf() { return B.wrongCount === 0 ? 3 : B.wrongCount <= 2 ? 2 : 1; }
+function showResult() {
+  VIEW.mode = 'result';
+  hideAllPanels();
+  const st = $('resTitle');
+  if (B.endless) {
+    st.textContent = `无尽模式结束 · 连对 ${B.streak} 题`;
+    $('resStat1').textContent = `历史最佳：连对 ${Math.max(SV.endBest, B.streak)} 题`;
+    $('resStat2').textContent = `获得金币 +${Math.floor(B.goldRun * goldMult())}`;
+    SV.endBest = Math.max(SV.endBest, B.streak);
+    SV.gold += Math.floor(B.goldRun * goldMult());
+    $('btnNext').classList.add('hidden');
+    storeSave();
+  } else if (B.win) {
+    const s = starsOf(), first = B.n >= SV.lv;
+    st.textContent = `第 ${B.n} 关 · 通过！`;
+    const goldGain = Math.floor((B.goldRun + s * 15 + (first ? 10 + B.L.w * 5 : 0)) * goldMult());
+    $('resStat1').textContent = `答对 ${B.right} / ${B.L.n} 题 · 最多连对 ${B.hero.maxCombo}`;
+    $('resStat2').textContent = `获得金币 🪙 +${goldGain}`;
+    const stars = $('result').querySelectorAll('.st');
+    stars.forEach((el, i) => { el.classList.remove('on'); if (i < s) setTimeout(() => { el.classList.add('on'); sfx('star'); }, 350 + i * 320); });
+    SV.stars[B.n] = Math.max(SV.stars[B.n] || 0, s);
+    SV.gold += goldGain;
+    let lvMsg = '';
+    if (first && B.n < 36) {
+      SV.lv = B.n + 1;
+      lvMsg = `勇者升级！Lv.${B.n} → Lv.${B.n + 1}　「${heroTitle(SV.lv)}」`;
+      sfx('up');
+    } else if (B.n === 36 && first) {
+      SV.lv = 37; lvMsg = '你已成为「数学大师」！'; sfx('up');
+    }
+    const lu = $('resLvup');
+    lu.style.display = lvMsg ? 'block' : 'none'; lu.textContent = lvMsg;
+    $('btnNext').classList.toggle('hidden', B.n >= 36);
+    storeSave();
+    if (B.n === 36 && first) setTimeout(showEnding, 2600);
+  } else {
+    st.textContent = `第 ${B.n} 关 · 失败…`;
+    $('resStat1').textContent = `答对 ${B.right} 题，再稳一点就能过关！`;
+    $('resStat2').textContent = '失败不扣金币，回工坊强化后再来吧';
+    $('btnNext').classList.add('hidden');
+  }
+  show('result', true);
+}
+
+// ============ 粒子 / 特效 ============
+function boom(x, y, color, n) {
+  const cnt = n ? n * 6 : 22;
+  for (let i = 0; i < cnt; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 60 + Math.random() * 240;
+    B.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, life: 0.5 + Math.random() * 0.5, max: 1, c: color, r: 2 + Math.random() * 4, grav: 1 });
+  }
+}
+function addText(x, y, txt, color, size) {
+  B.texts.push({ x, y, txt, c: color, s: size || 24, life: 1.1 });
+}
+function spawnCoins(x, y, n) {
+  for (let i = 0; i < n; i++) B.coins.push({ x, y, vx: -40 + Math.random() * 80, vy: -180 - Math.random() * 80, life: 1 });
+}
+
+// ============ 主更新 ============
+function update(dt) {
+  if (!B || VIEW.mode !== 'battle' || VIEW.paused) return;
+  B.t += dt; B.ambT += dt;
+  if (B.resultT > 0) {
+    B.resultT -= dt;
+    // 战斗结束演出继续更新粒子
+    for (const p of B.parts) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.grav) p.vy += 460 * dt; }
+    B.parts = B.parts.filter(p => p.life > 0);
+    for (const t of B.texts) { t.life -= dt; t.y -= 46 * dt; }
+    B.texts = B.texts.filter(t => t.life > 0);
+    for (const c of B.coins) { c.life -= dt; c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 620 * dt; }
+    B.coins = B.coins.filter(c => c.life > 0);
+    if (B.resultT <= 0) showResult();
+    return;
+  }
+  if (B.flashT > 0) B.flashT -= dt;
+  if (B.shake > 0) B.shake = Math.max(0, B.shake - dt * 40);
+  if (B.hero.castT > 0) B.hero.castT -= dt;
+  if (B.hero.hurtT > 0) B.hero.hurtT -= dt;
+  if (B.endless) { B.w = endlessWorld(); }
+  // 火球
+  for (const p of B.projs) { p.t += dt; }
+  B.projs = B.projs.filter(p => {
+    if (p.t >= p.dur) { projHit(); return false; }
+    return true;
+  });
+  // 敌人
+  const e = B.enemy;
+  if (e && !B.boss) {
+    e.hitFlash = Math.max(0, e.hitFlash - dt);
+    if (e.state === 'walk') {
+      e.x -= e.speed * dt;
+      if (e.x <= HIT_X) {
+        e.x = HIT_X; e.state = 'atk'; e.t = 0;
+        if (!B.lock) { // 超时未作答
+          B.wrongCount++; B.streak = 0; B.hero.combo = 0; B.lastRight = false;
+          sfx('wrong'); recordWrong(currentQ()); B.res[B.qi] = 'w';
+          addText(e.x - 30, GROUND_Y - 210, '超时！', '#ff9e5e', 28);
+          B.lock = true; B.lockT = 1.15; B.phase = 'after';
+        }
+      }
+    } else if (e.state === 'atk') {
+      e.t += dt;
+      if (e.t > 0.45 && !e.struck) { e.struck = true; enemyHitHero(10 + B.L.w * 2); }
+      if (e.t > 0.8) { e.state = 'run'; e.t = 0; }
+    } else if (e.state === 'run') {
+      e.x += 800 * dt;
+      if (e.x > SPAWN_X + 90) { B.enemy = null; if (!B.over) nextEnemy(); }
+    } else if (e.state === 'die') {
+      e.dieT += dt;
+      if (e.dieT > 0.5) { B.enemy = null; }
+    }
+  }
+  // BOSS
+  if (B.boss && B.phase !== 'bossdie') {
+    const bo = B.boss;
+    bo.hitFlash = Math.max(0, bo.hitFlash - dt);
+    bo.charge = Math.min(1, bo.charge + dt / bo.cd);
+    if (bo.charge >= 1) { bo.charge = 0.12; bossStrike(24 + B.L.w * 2); addText(BOSS_X, 260, '💥 混沌冲击！', '#ff7a5e', 34); }
+  }
+  // 锁定倒计时 → 下一题（等旧敌人清场后再计时，避免敌人原地消失/抢跳下一题）
+  if (B.lock && B.phase === 'after') {
+    const e0 = B.enemy;
+    const busy = e0 && !B.boss && (e0.state === 'atk' || e0.state === 'run');
+    if (!busy) {
+      B.lockT -= dt;
+      if (B.lockT <= 0 && !B.over) nextEnemy();
+    }
+  }
+  // BOSS 死亡演出
+  if (B.phase === 'bossdie') {
+    B.lockT += dt;
+    if (B.lockT > 0.2 && Math.random() < 0.5) boom(BOSS_X + ri(-70, 70), GROUND_Y - ri(20, 160), pick(['#ffb05e', '#ffd94d', '#ff7a5e']));
+    B.shake = Math.max(B.shake, 6);
+    if (B.lockT > 1.4) victory();
+  }
+  // 粒子
+  for (const p of B.parts) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.grav) p.vy += 460 * dt; }
+  B.parts = B.parts.filter(p => p.life > 0);
+  for (const t of B.texts) { t.life -= dt; t.y -= 46 * dt; }
+  B.texts = B.texts.filter(t => t.life > 0);
+  for (const c of B.coins) { c.life -= dt; c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 620 * dt; }
+  B.coins = B.coins.filter(c => c.life > 0);
+}
+
+// ============ 输入 ============
+function padKey(k) {
+  if (!B || B.lock || B.over || VIEW.paused || VIEW.mode !== 'battle') return;
+  const q = currentQ(); if (!q || q.k !== 'in') return;
+  if (k === 'B') B.inVal = B.inVal.slice(0, -1);
+  else if (k === 'S') { if (!B.inVal) { toast('先输入答案，再按确认'); return; } submit(B.inVal); return; }
+  else if (B.inVal.length < 9) B.inVal += k;
+  updatePadDisp();
+  if (k !== 'B') sfx('type');
+}
+window.addEventListener('keydown', ev => {
+  if (VIEW.mode !== 'battle') { if (ev.key === 'Escape' && VIEW.mode === 'map') { } return; }
+  if (ev.key === 'Escape') { togglePause(); return; }
+  if (VIEW.paused) return;
+  const q = B && currentQ(); if (!q) return;
+  if (q.k === 'in') {
+    if (/^[0-9]$/.test(ev.key)) { ev.preventDefault(); padKey(ev.key); }
+    else if (ev.key === '-' || ev.key === '.') { ev.preventDefault(); padKey(ev.key); }
+    else if (ev.key === '/') { ev.preventDefault(); padKey('/'); }
+    else if (ev.key === 'Backspace') { ev.preventDefault(); padKey('B'); }
+    else if (ev.key === 'Enter') { ev.preventDefault(); padKey('S'); }
+  } else {
+    if (/^[1-4]$/.test(ev.key)) { const i = Number(ev.key) - 1; if (i < q.o.length) submit(String(i)); }
+  }
+});
+function togglePause() {
+  if (VIEW.mode !== 'battle' || B.over) return;
+  VIEW.paused = !VIEW.paused;
+  show('pause', VIEW.paused);
+}
+
+// ============================================================
+//  渲染
+// ============================================================
+function buildDeco() {
+  const d = { bg: [], mid: [], amb: [], tw: [] };
+  for (let i = 0; i < 7; i++) d.bg.push({ x: 40 + i * 190 + ri(-40, 40), s: 0.6 + Math.random() * 0.9 });
+  for (let i = 0; i < 9; i++) d.mid.push({ x: Math.random() * 1280, s: 0.5 + Math.random() * 0.8, y: Math.random() });
+  for (let i = 0; i < 34; i++) d.amb.push({ x: Math.random() * 1280, y: Math.random() * 660, v: 0.3 + Math.random(), p: Math.random() * 6.28 });
+  for (let i = 0; i < 60; i++) d.tw.push({ x: Math.random() * 1280, y: Math.random() * 640, s: Math.random() * 1.6 + 0.4, p: Math.random() * 6.28 });
+  return d;
+}
+function rr(x, y, w, h, r) { // 圆角矩形路径
+  CTX.beginPath();
+  CTX.moveTo(x + r, y); CTX.arcTo(x + w, y, x + w, y + h, r); CTX.arcTo(x + w, y + h, x, y + h, r);
+  CTX.arcTo(x, y + h, x, y, r); CTX.arcTo(x, y, x + w, y, r); CTX.closePath();
+}
+function drawScene(w, t) {
+  const sky = CTX.createLinearGradient(0, 0, 0, GROUND_Y);
+  sky.addColorStop(0, w.sky[0]); sky.addColorStop(1, w.sky[1]);
+  CTX.fillStyle = sky; CTX.fillRect(0, 0, Wd, GROUND_Y + 2);
+  const d = B ? B.deco : MENU_DECO;
+  CTX.save();
+  switch (w.scene) {
+    case 'forest': {
+      CTX.fillStyle = 'rgba(255,250,200,.85)'; CTX.beginPath(); CTX.arc(640, 105, 46, 0, 7); CTX.fill();
+      for (const b of d.bg) { tree(b.x, GROUND_Y - 10, b.s * 1.5, '#2e6e2a'); }
+      for (const m of d.mid) { tree(m.x * 0.98, GROUND_Y, m.s, '#3e8a36'); }
+      CTX.fillStyle = 'rgba(200,255,150,.8)';
+      for (const a of d.amb) { const y = a.y + Math.sin(t * 0.8 + a.p) * 18; if (Math.sin(t * 2 + a.p) > 0.3) { CTX.beginPath(); CTX.arc(a.x, y, 2.5, 0, 7); CTX.fill(); } }
+      break;
+    }
+    case 'volcano': {
+      CTX.fillStyle = '#3a2030'; CTX.beginPath(); CTX.moveTo(920, GROUND_Y); CTX.lineTo(1140, 190); CTX.lineTo(1360, GROUND_Y); CTX.fill();
+      const gl = 0.5 + Math.sin(t * 2.2) * 0.2;
+      CTX.fillStyle = `rgba(255,110,40,${gl})`; CTX.beginPath(); CTX.moveTo(1090, 210); CTX.lineTo(1140, 190); CTX.lineTo(1190, 210); CTX.lineTo(1140, 260); CTX.fill();
+      for (const b of d.bg) { CTX.fillStyle = '#2c1a26'; CTX.beginPath(); CTX.ellipse(b.x, GROUND_Y, 130 * b.s, 60 * b.s, 0, Math.PI, 0); CTX.fill(); }
+      CTX.fillStyle = 'rgba(255,150,60,.9)';
+      for (const a of d.amb) { const y = GROUND_Y - ((t * 40 * a.v + a.y * 3) % 560); CTX.beginPath(); CTX.arc(a.x, y, 2.2, 0, 7); CTX.fill(); }
+      break;
+    }
+    case 'bay': {
+      CTX.fillStyle = '#d8c98a'; CTX.beginPath(); CTX.ellipse(1090, GROUND_Y - 46, 110, 52, 0, Math.PI, 0); CTX.fill();
+      CTX.fillStyle = '#4a9a6e'; CTX.beginPath(); CTX.ellipse(1090, GROUND_Y - 66, 60, 26, 0, Math.PI, 0); CTX.fill();
+      CTX.fillStyle = 'rgba(60,140,190,.55)'; CTX.fillRect(0, GROUND_Y - 70, Wd, 72);
+      CTX.strokeStyle = 'rgba(255,255,255,.5)'; CTX.lineWidth = 3;
+      for (let i = 0; i < 9; i++) { const x = ((i * 160 + t * 26) % 1360) - 40; CTX.beginPath(); CTX.arc(x, GROUND_Y - 24 + Math.sin(t + i) * 6, 26, 3.34, 6.08); CTX.stroke(); }
+      CTX.fillStyle = 'rgba(180,230,255,.8)';
+      for (const a of d.amb) { const y = GROUND_Y - ((t * 24 * a.v + a.y * 2) % 620); CTX.beginPath(); CTX.arc(a.x + Math.sin(t + a.p) * 10, y, 2 + a.v, 0, 7); CTX.fill(); }
+      break;
+    }
+    case 'plain': {
+      CTX.fillStyle = 'rgba(255,250,190,.9)'; CTX.beginPath(); CTX.arc(220, 130, 52, 0, 7); CTX.fill();
+      CTX.fillStyle = '#b8cc6a'; CTX.beginPath(); CTX.ellipse(640, GROUND_Y, 560, 120, 0, Math.PI, 0); CTX.fill();
+      CTX.fillStyle = '#9ab84e';
+      for (const b of d.bg) { CTX.beginPath(); CTX.ellipse(b.x, GROUND_Y - 30, 150 * b.s, 44 * b.s, 0, Math.PI, 0); CTX.fill(); }
+      CTX.strokeStyle = 'rgba(255,255,255,.35)'; CTX.lineWidth = 2;
+      for (let i = 0; i < 5; i++) { const y = 140 + i * 60, off = Math.sin(t * 1.4 + i) * 60; CTX.beginPath(); CTX.moveTo(200 + off, y); CTX.quadraticCurveTo(500 + off, y - 14, 1100 + off, y); CTX.stroke(); }
+      break;
+    }
+    case 'tower': {
+      CTX.fillStyle = '#efe8c8'; CTX.beginPath(); CTX.arc(1120, 130, 44, 0, 7); CTX.fill();
+      for (const b of d.bg) {
+        CTX.fillStyle = '#3a3450'; CTX.fillRect(b.x - 60 * b.s, GROUND_Y - 330 * b.s, 120 * b.s, 330 * b.s);
+        CTX.fillStyle = 'rgba(255,220,120,.85)';
+        for (let k = 0; k < 5; k++) if ((k + Math.floor(b.x)) % 3) CTX.fillRect(b.x - 30 * b.s + (k % 2) * 42 * b.s, GROUND_Y - 300 * b.s + k * 52 * b.s, 16, 22);
+      }
+      CTX.strokeStyle = 'rgba(200,160,255,.7)'; CTX.lineWidth = 3;
+      for (const a of d.amb) { const x = a.x + Math.sin(t * 0.7 + a.p) * 30, y = a.y + Math.cos(t * 0.5 + a.p) * 20; CTX.strokeRect(x, y, 9, 9); }
+      break;
+    }
+    case 'ring': {
+      CTX.strokeStyle = 'rgba(255,176,212,.6)'; CTX.lineWidth = 26;
+      CTX.beginPath(); CTX.ellipse(980, 210, 210, 66, -0.2, 0, 7); CTX.stroke();
+      CTX.strokeStyle = 'rgba(224,168,74,.55)'; CTX.lineWidth = 12;
+      CTX.beginPath(); CTX.ellipse(980, 210, 210 + Math.sin(t) * 8, 66 + Math.sin(t) * 4, -0.2, 0, 7); CTX.stroke();
+      for (const b of d.bg) { CTX.fillStyle = '#4a3e5e'; CTX.beginPath(); CTX.ellipse(b.x, GROUND_Y, 120 * b.s, 46 * b.s, 0, Math.PI, 0); CTX.fill(); }
+      CTX.fillStyle = 'rgba(255,220,160,.9)';
+      for (const a of d.amb) { const r = 20 + a.v * 14; const x = a.x + Math.cos(t * 0.9 + a.p) * 24; CTX.beginPath(); CTX.arc(x, a.y, 1.8, 0, 7); CTX.fill(); }
+      break;
+    }
+    case 'canyon': {
+      for (let i = 0; i < 3; i++) {
+        CTX.fillStyle = ['#8a5a44', '#a06a4c', '#b47e58'][i];
+        const x0 = i * 460 - 60;
+        CTX.beginPath(); CTX.moveTo(x0, GROUND_Y); CTX.lineTo(x0 + 90, GROUND_Y - 200 - i * 60); CTX.lineTo(x0 + 240, GROUND_Y - 140 - i * 40); CTX.lineTo(x0 + 420, GROUND_Y); CTX.fill();
+      }
+      CTX.fillStyle = 'rgba(255,200,140,.5)';
+      for (const a of d.amb) { const y = GROUND_Y - ((t * 30 * a.v + a.y * 2) % 580); CTX.beginPath(); CTX.arc(a.x, y, 1.8, 0, 7); CTX.fill(); }
+      break;
+    }
+    case 'ice': {
+      for (let i = 0; i < 3; i++) {
+        CTX.strokeStyle = `rgba(${140 + i * 30},${220 - i * 20},255,.35)`; CTX.lineWidth = 34 - i * 8;
+        CTX.beginPath();
+        for (let x = 0; x <= 1280; x += 40) CTX.lineTo(x, 150 + i * 46 + Math.sin(x * 0.006 + t * 0.6 + i) * 26);
+        CTX.stroke();
+      }
+      for (const b of d.bg) { CTX.fillStyle = 'rgba(210,235,250,.9)'; CTX.beginPath(); CTX.moveTo(b.x - 90 * b.s, GROUND_Y); CTX.lineTo(b.x, GROUND_Y - 150 * b.s); CTX.lineTo(b.x + 90 * b.s, GROUND_Y); CTX.fill(); }
+      CTX.fillStyle = 'rgba(255,255,255,.9)';
+      for (const a of d.amb) { const y = (a.y + t * 34 * a.v) % 660; CTX.beginPath(); CTX.arc(a.x + Math.sin(t + a.p) * 12, y, 2, 0, 7); CTX.fill(); }
+      break;
+    }
+    case 'star': {
+      for (const s of d.tw) { CTX.fillStyle = `rgba(255,255,255,${0.35 + 0.5 * Math.abs(Math.sin(t * 1.4 + s.p))})`; CTX.fillRect(s.x, s.y, s.s, s.s); }
+      const nb = CTX.createRadialGradient(930, 240, 20, 930, 240, 300);
+      nb.addColorStop(0, 'rgba(180,90,255,.4)'); nb.addColorStop(1, 'rgba(180,90,255,0)');
+      CTX.fillStyle = nb; CTX.fillRect(600, 0, 680, 560);
+      CTX.fillStyle = '#c9a066'; CTX.beginPath(); CTX.arc(230, 200, 40, 0, 7); CTX.fill();
+      CTX.strokeStyle = 'rgba(255,230,180,.8)'; CTX.lineWidth = 7; CTX.beginPath(); CTX.ellipse(230, 200, 62, 16, -0.35, 0, 7); CTX.stroke();
+      break;
+    }
+  }
+  CTX.restore();
+  // 地面
+  CTX.fillStyle = w.g1; CTX.fillRect(0, GROUND_Y, Wd, Ht - GROUND_Y);
+  CTX.fillStyle = w.g2; CTX.fillRect(0, GROUND_Y, Wd, 12);
+  CTX.fillStyle = 'rgba(0,0,0,.12)';
+  for (let i = 0; i < 10; i++) { CTX.beginPath(); CTX.ellipse(((i * 137 + 60) % 1300), GROUND_Y + 34 + (i % 3) * 34, 44, 8, 0, 0, 7); CTX.fill(); }
+}
+function tree(x, y, s, c) {
+  CTX.fillStyle = '#6a4a2a'; CTX.fillRect(x - 7 * s, y - 70 * s, 14 * s, 70 * s);
+  CTX.fillStyle = c;
+  CTX.beginPath(); CTX.moveTo(x - 52 * s, y - 58 * s); CTX.lineTo(x, y - 150 * s); CTX.lineTo(x + 52 * s, y - 58 * s); CTX.fill();
+  CTX.beginPath(); CTX.moveTo(x - 44 * s, y - 96 * s); CTX.lineTo(x, y - 176 * s); CTX.lineTo(x + 44 * s, y - 96 * s); CTX.fill();
+}
+// ============ 勇者 ============
+function drawHero(t) {
+  const h = B.hero, bob = Math.sin(t * 3) * 4;
+  const x = HERO_X, y = GROUND_Y + bob;
+  CTX.fillStyle = 'rgba(0,0,0,.25)'; CTX.beginPath(); CTX.ellipse(x, GROUND_Y + 8, 46, 12, 0, 0, 7); CTX.fill();
+  const lean = h.castT > 0 ? -6 : 0;
+  // 斗篷
+  CTX.fillStyle = '#7a3a8a';
+  CTX.beginPath(); CTX.moveTo(x - 26 + lean, y - 96); CTX.quadraticCurveTo(x - 44 + lean, y - 30, x - 30, y - 2); CTX.lineTo(x - 4, y - 2); CTX.lineTo(x - 8 + lean, y - 90); CTX.fill();
+  // 长袍
+  CTX.fillStyle = '#3a6ec9';
+  CTX.beginPath(); CTX.moveTo(x - 24, y - 92); CTX.lineTo(x + 24, y - 92); CTX.quadraticCurveTo(x + 34, y - 6, x + 22, y - 2); CTX.lineTo(x - 22, y - 2); CTX.quadraticCurveTo(x - 34, y - 6, x - 24, y - 92); CTX.fill();
+  CTX.fillStyle = '#ffd94d'; CTX.fillRect(x - 24, y - 46, 48, 8); // 腰带
+  // 头
+  CTX.fillStyle = '#ffd9b0'; CTX.beginPath(); CTX.arc(x, y - 112, 24, 0, 7); CTX.fill();
+  CTX.fillStyle = '#2a2a2a';
+  CTX.beginPath(); CTX.arc(x - 8, y - 114, 3.2, 0, 7); CTX.arc(x + 8, y - 114, 3.2, 0, 7); CTX.fill();
+  CTX.strokeStyle = '#2a2a2a'; CTX.lineWidth = 2.4; CTX.beginPath(); CTX.arc(x, y - 104, 8, 0.35, 2.79); CTX.stroke();
+  // 腮红
+  CTX.fillStyle = 'rgba(255,120,120,.4)'; CTX.beginPath(); CTX.arc(x - 14, y - 106, 4.4, 0, 7); CTX.arc(x + 14, y - 106, 4.4, 0, 7); CTX.fill();
+  // 法师帽
+  CTX.fillStyle = '#2a4aa0';
+  CTX.beginPath(); CTX.ellipse(x, y - 130, 34, 9, 0, 0, 7); CTX.fill();
+  CTX.beginPath(); CTX.moveTo(x - 22, y - 130); CTX.quadraticCurveTo(x - 4, y - 196, x + 16 + Math.sin(t * 2) * 4, y - 186); CTX.quadraticCurveTo(x + 12, y - 150, x + 22, y - 130); CTX.fill();
+  CTX.fillStyle = '#ffe14d'; CTX.beginPath(); CTX.arc(x - 6, y - 152, 3.4, 0, 7); CTX.arc(x + 8, y - 164, 2.8, 0, 7); CTX.fill();
+  // 法杖
+  const cast = h.castT > 0;
+  const sx = x + 26, sy = y - 60, ang = cast ? -0.9 : -0.35;
+  const ex = sx + Math.cos(ang) * 96, ey = sy + Math.sin(ang) * 96;
+  CTX.strokeStyle = '#8a5a2a'; CTX.lineWidth = 8; CTX.lineCap = 'round';
+  CTX.beginPath(); CTX.moveTo(sx, sy + 34); CTX.lineTo(ex, ey); CTX.stroke();
+  const glow = cast ? 1 : 0.55;
+  const gg = CTX.createRadialGradient(ex, ey, 2, ex, ey, cast ? 34 : 20);
+  gg.addColorStop(0, `rgba(255,240,150,${glow})`); gg.addColorStop(1, 'rgba(255,240,150,0)');
+  CTX.fillStyle = gg; CTX.beginPath(); CTX.arc(ex, ey, cast ? 34 : 20, 0, 7); CTX.fill();
+  CTX.fillStyle = '#9ade54'; CTX.beginPath(); CTX.arc(ex, ey, cast ? 11 : 8, 0, 7); CTX.fill();
+  CTX.fillStyle = 'rgba(255,255,255,.8)'; CTX.beginPath(); CTX.arc(ex - 2.6, ey - 3, 3, 0, 7); CTX.fill();
+  if (cast) for (let i = 0; i < 4; i++) { const a2 = t * 9 + i * 1.57; CTX.fillStyle = '#ffe14d'; CTX.beginPath(); CTX.arc(ex + Math.cos(a2) * 22, ey + Math.sin(a2) * 22, 3, 0, 7); CTX.fill(); }
+  // 答案回显宝珠
+  const q = B.qi >= 0 ? B.qs[B.qi] : null;
+  if (q && q.k === 'in' && !B.lock && B.inVal) {
+    const ox = x + 10, oy = y - 226;
+    const og = CTX.createRadialGradient(ox, oy, 4, ox, oy, 52);
+    og.addColorStop(0, 'rgba(154,222,84,.5)'); og.addColorStop(1, 'rgba(154,222,84,0)');
+    CTX.fillStyle = og; CTX.beginPath(); CTX.arc(ox, oy, 52, 0, 7); CTX.fill();
+    CTX.fillStyle = 'rgba(10,26,6,.85)'; CTX.beginPath(); CTX.arc(ox, oy, 34, 0, 7); CTX.fill();
+    CTX.strokeStyle = '#9ade54'; CTX.lineWidth = 3; CTX.stroke();
+    CTX.fillStyle = '#c9f79a'; CTX.font = '900 24px Consolas,monospace'; CTX.textAlign = 'center'; CTX.textBaseline = 'middle';
+    CTX.fillText(B.inVal, ox, oy);
+  }
+  if (h.hurtT > 0) { CTX.fillStyle = `rgba(255,60,40,${h.hurtT * 0.5})`; CTX.beginPath(); CTX.arc(x, y - 100, 64, 0, 7); CTX.fill(); }
+}
+// ============ 混沌传送门 ============
+function drawPortal(t, accent) {
+  const x = PORTAL_X, cy = GROUND_Y - 86;
+  const g = CTX.createRadialGradient(x, cy, 8, x, cy, 110);
+  g.addColorStop(0, 'rgba(30,10,50,.95)'); g.addColorStop(0.55, 'rgba(80,30,120,.55)'); g.addColorStop(1, 'rgba(80,30,120,0)');
+  CTX.fillStyle = g; CTX.beginPath(); CTX.ellipse(x, cy, 74, 100, 0, 0, 7); CTX.fill();
+  for (let i = 0; i < 3; i++) {
+    CTX.strokeStyle = i === 1 ? accent : 'rgba(180,110,255,.7)';
+    CTX.lineWidth = 5 - i;
+    CTX.beginPath();
+    CTX.ellipse(x, cy, 52 + i * 16, 74 + i * 18, Math.sin(t * 0.7 + i) * 0.25, t * (0.5 + i * 0.3), t * (0.5 + i * 0.3) + 4.6);
+    CTX.stroke();
+  }
+  CTX.fillStyle = 'rgba(255,255,255,.85)';
+  for (let i = 0; i < 5; i++) {
+    const a = t * 1.6 + i * 1.26, r = 30 + Math.sin(t * 2 + i) * 18;
+    CTX.beginPath(); CTX.arc(x + Math.cos(a) * r, cy + Math.sin(a) * r * 1.3, 2, 0, 7); CTX.fill();
+  }
+  CTX.fillStyle = 'rgba(0,0,0,.28)';
+  CTX.beginPath(); CTX.ellipse(x, GROUND_Y + 6, 86, 16, 0, 0, 7); CTX.fill();
+}
+// ============ 怪物 ============
+function drawMonster(kind, x, y, t, opt) {
+  opt = opt || {};
+  const c = kind.c, type = kind.t;
+  const boss = !!opt.boss, s = boss ? 1.5 : 1;
+  let bo = 0;
+  if (!boss) bo = Math.abs(Math.sin(t * 6)) * 8; // 行走弹跳
+  const gy = y - bo;
+  CTX.fillStyle = 'rgba(0,0,0,.22)';
+  CTX.beginPath(); CTX.ellipse(x, y + 6, 42 * s, 10 * s, 0, 0, 7); CTX.fill();
+  CTX.save(); CTX.translate(x, gy);
+  if (boss) { // BOSS 暗色光晕，提升与场景的对比
+    const hg = CTX.createRadialGradient(0, -100 * s, 20, 0, -100 * s, 135 * s);
+    hg.addColorStop(0, 'rgba(15,5,35,.55)'); hg.addColorStop(1, 'rgba(15,5,35,0)');
+    CTX.fillStyle = hg; CTX.beginPath(); CTX.arc(0, -100 * s, 135 * s, 0, 7); CTX.fill();
+  }
+  if (opt.flash) { CTX.globalAlpha = 0.6 + Math.sin(t * 40) * 0.4; }
+  const D = (f, sc) => f(sc || s);
+  const eyes = (n, ex, ey, er) => { // n 只眼睛
+    for (let i = 0; i < n; i++) {
+      const ox = n === 1 ? 0 : (i - (n - 1) / 2) * (ex * 2 / Math.max(1, n - 1));
+      CTX.fillStyle = '#fff'; CTX.beginPath(); CTX.arc(ox, ey, er, 0, 7); CTX.fill();
+      CTX.fillStyle = '#1a1a2a'; CTX.beginPath(); CTX.arc(ox + Math.sin(t * 2 + i) * 2, ey, er * 0.5, 0, 7); CTX.fill();
+    }
+  };
+  switch (type) {
+    case 'blob': {
+      const sq = 1 + Math.sin(t * 5) * 0.08;
+      CTX.fillStyle = c; CTX.beginPath(); CTX.ellipse(0, -38 * s, 44 * s * sq, 40 * s / sq, 0, 0, 7); CTX.fill();
+      CTX.fillStyle = 'rgba(255,255,255,.35)'; CTX.beginPath(); CTX.ellipse(-14 * s, -52 * s, 12 * s, 8 * s, -0.5, 0, 7); CTX.fill();
+      eyes(2, 30, -42 * s, 9 * s);
+      CTX.strokeStyle = '#1a1a2a'; CTX.lineWidth = 3; CTX.beginPath(); CTX.arc(0, -26 * s, 10 * s, 0.3, 2.84); CTX.stroke();
+      break;
+    }
+    case 'mush': {
+      CTX.fillStyle = '#e8dcb8'; CTX.fillRect(-14 * s, -40 * s, 28 * s, 40 * s);
+      CTX.fillStyle = c; CTX.beginPath(); CTX.ellipse(0, -42 * s, 44 * s, 30 * s, 0, Math.PI, 0); CTX.fill();
+      CTX.fillStyle = 'rgba(255,255,255,.7)';
+      CTX.beginPath(); CTX.arc(-20 * s, -54 * s, 6 * s, 0, 7); CTX.arc(16 * s, -60 * s, 5 * s, 0, 7); CTX.fill();
+      eyes(2, 20, -22 * s, 6 * s);
+      CTX.strokeStyle = '#1a1a2a'; CTX.lineWidth = 2.6; CTX.beginPath(); CTX.arc(0, -14 * s, 6 * s, 0.3, 2.84); CTX.stroke();
+      break;
+    }
+    case 'beetle': {
+      for (let i = 0; i < 3; i++) { const lx = -26 + i * 26; const sw = Math.sin(t * 10 + i * 2) * 6; CTX.strokeStyle = '#1a1a2a'; CTX.lineWidth = 5; CTX.beginPath(); CTX.moveTo(lx * s, -18 * s); CTX.lineTo(lx * s + 12, sw); CTX.stroke(); }
+      CTX.fillStyle = c; CTX.beginPath(); CTX.ellipse(0, -34 * s, 40 * s, 30 * s, 0, 0, 7); CTX.fill();
+      CTX.strokeStyle = 'rgba(0,0,0,.3)'; CTX.lineWidth = 4; CTX.beginPath(); CTX.moveTo(0, -62 * s); CTX.lineTo(0, -8 * s); CTX.stroke();
+      eyes(2, 30, -58 * s, 7 * s);
+      CTX.strokeStyle = '#1a1a2a'; CTX.lineWidth = 3;
+      CTX.beginPath(); CTX.moveTo(-10 * s, -70 * s); CTX.lineTo(-18 * s, -84 * s); CTX.moveTo(10 * s, -70 * s); CTX.lineTo(18 * s, -84 * s); CTX.stroke();
+      break;
+    }
+    case 'bat': {
+      const fl = Math.sin(t * 9) * 0.5;
+      CTX.fillStyle = c;
+      for (const dir of [-1, 1]) { CTX.beginPath(); CTX.moveTo(0, -66 * s); CTX.quadraticCurveTo(dir * 54 * s, -90 * s + fl * 26, dir * 62 * s, -50 * s + fl * 20); CTX.quadraticCurveTo(dir * 30 * s, -46 * s, 0, -50 * s); CTX.fill(); }
+      CTX.beginPath(); CTX.arc(0, -62 * s, 22 * s, 0, 7); CTX.fill();
+      eyes(2, 22, -66 * s, 6 * s);
+      CTX.fillStyle = '#fff';
+      CTX.beginPath(); CTX.moveTo(-6 * s, -52 * s); CTX.lineTo(-3 * s, -44 * s); CTX.lineTo(0, -52 * s); CTX.moveTo(6 * s, -52 * s); CTX.lineTo(3 * s, -44 * s); CTX.lineTo(0, -52 * s); CTX.fill();
+      break;
+    }
+    case 'golem': {
+      CTX.fillStyle = c;
+      rr(-40 * s, -84 * s, 80 * s, 76 * s, 10 * s); CTX.fill();
+      rr(-24 * s, -116 * s, 48 * s, 36 * s, 8 * s); CTX.fill();
+      CTX.fillRect(-58 * s, -76 * s, 16 * s, 52 * s); CTX.fillRect(42 * s, -76 * s, 16 * s, 52 * s);
+      CTX.strokeStyle = 'rgba(0,0,0,.35)'; CTX.lineWidth = 3;
+      CTX.beginPath(); CTX.moveTo(-20 * s, -80 * s); CTX.lineTo(-6 * s, -52 * s); CTX.lineTo(-16 * s, -30 * s); CTX.moveTo(20 * s, -70 * s); CTX.lineTo(28 * s, -44 * s); CTX.stroke();
+      eyes(2, 22, -100 * s, 7 * s);
+      CTX.fillStyle = 'rgba(255,140,60,.8)'; CTX.beginPath(); CTX.arc(-16 * s, -98 * s, 4 * s, 0, 7); CTX.arc(16 * s, -98 * s, 4 * s, 0, 7); CTX.fill();
+      break;
+    }
+    case 'jelly': {
+      const fl = Math.sin(t * 3) * 10;
+      CTX.fillStyle = c + 'cc'; CTX.beginPath(); CTX.arc(0, -70 * s + fl, 34 * s, Math.PI, 0); CTX.lineTo(34 * s, -62 * s + fl); CTX.lineTo(-34 * s, -62 * s + fl); CTX.fill();
+      CTX.strokeStyle = c; CTX.lineWidth = 5;
+      for (let i = -2; i <= 2; i++) { CTX.beginPath(); CTX.moveTo(i * 13 * s, -62 * s + fl); CTX.quadraticCurveTo(i * 13 * s + Math.sin(t * 4 + i) * 10, -36, i * 13 * s + Math.sin(t * 4 + i) * 14, -6); CTX.stroke(); }
+      eyes(2, 26, -76 * s + fl, 6 * s);
+      break;
+    }
+    case 'crab': {
+      CTX.fillStyle = c; CTX.beginPath(); CTX.ellipse(0, -28 * s, 44 * s, 26 * s, 0, 0, 7); CTX.fill();
+      for (const dir of [-1, 1]) {
+        CTX.beginPath(); CTX.ellipse(dir * 56 * s, -34 * s + Math.sin(t * 6 + dir) * 6, 14 * s, 10 * s, dir * 0.5, 0, 7); CTX.fill();
+        CTX.strokeStyle = c; CTX.lineWidth = 5; CTX.beginPath(); CTX.moveTo(dir * 40 * s, -20 * s); CTX.lineTo(dir * 48 * s, -2); CTX.moveTo(dir * 28 * s, -16 * s); CTX.lineTo(dir * 34 * s, 0); CTX.stroke();
+      }
+      eyes(2, 28, -44 * s, 7 * s);
+      break;
+    }
+    case 'imp': {
+      CTX.fillStyle = c;
+      CTX.beginPath(); CTX.moveTo(-12 * s, -50 * s); CTX.lineTo(-32 * s, -84 * s); CTX.lineTo(-6 * s, -62 * s); CTX.moveTo(12 * s, -50 * s); CTX.lineTo(32 * s, -84 * s); CTX.lineTo(6 * s, -62 * s); CTX.fill();
+      rr(-20 * s, -56 * s, 40 * s, 50 * s, 12 * s); CTX.fill();
+      CTX.fillStyle = '#e8dcb8'; CTX.beginPath(); CTX.arc(0, -72 * s, 20 * s, 0, 7); CTX.fill();
+      eyes(2, 22, -74 * s, 6 * s);
+      CTX.strokeStyle = '#3a4a2a'; CTX.lineWidth = 4; CTX.beginPath(); CTX.moveTo(26 * s, -40 * s); CTX.lineTo(44 * s, -84 * s); CTX.stroke();
+      CTX.fillStyle = '#9ade54'; CTX.beginPath(); CTX.moveTo(44 * s, -84 * s); CTX.lineTo(52 * s, -76 * s); CTX.lineTo(38 * s, -74 * s); CTX.fill();
+      break;
+    }
+    case 'bird': {
+      const fl = Math.sin(t * 8) * 0.6;
+      CTX.fillStyle = c;
+      CTX.beginPath(); CTX.ellipse(0, -66 * s, 30 * s, 38 * s, 0.2, 0, 7); CTX.fill();
+      for (const dir of [-1, 1]) { CTX.beginPath(); CTX.moveTo(0, -70 * s); CTX.quadraticCurveTo(dir * 50 * s, -96 * s - fl * 30, dir * 60 * s, -60 * s - fl * 24); CTX.quadraticCurveTo(dir * 24 * s, -52 * s, 0, -58 * s); CTX.fill(); }
+      CTX.fillStyle = '#ffb050'; CTX.beginPath(); CTX.moveTo(-26 * s, -70 * s); CTX.lineTo(-44 * s, -64 * s); CTX.lineTo(-26 * s, -58 * s); CTX.fill();
+      eyes(1, 0, -80 * s, 6 * s);
+      break;
+    }
+    case 'wolf': {
+      CTX.fillStyle = c;
+      CTX.beginPath(); CTX.ellipse(0, -34 * s, 48 * s, 22 * s, 0, 0, 7); CTX.fill();
+      CTX.beginPath(); CTX.ellipse(-44 * s, -48 * s, 18 * s, 15 * s, 0.3, 0, 7); CTX.fill();
+      CTX.beginPath(); CTX.moveTo(-50 * s, -60 * s); CTX.lineTo(-46 * s, -78 * s); CTX.lineTo(-38 * s, -60 * s); CTX.fill();
+      CTX.beginPath(); CTX.moveTo(44 * s, -40 * s); CTX.quadraticCurveTo(70 * s, -60 * s + Math.sin(t * 5) * 8, 62 * s, -20 * s); CTX.lineTo(44 * s, -28 * s); CTX.fill();
+      for (let i = 0; i < 4; i++) { const lx = -30 + i * 22; CTX.strokeStyle = c; CTX.lineWidth = 7; CTX.beginPath(); CTX.moveTo(lx * s, -22 * s); CTX.lineTo(lx * s + Math.sin(t * 9 + i) * 5, -2); CTX.stroke(); }
+      eyes(1, 0, -52 * s, 5 * s);
+      break;
+    }
+    case 'beast': {
+      CTX.fillStyle = c;
+      CTX.beginPath(); CTX.ellipse(0, -44 * s, 46 * s, 34 * s, 0, 0, 7); CTX.fill();
+      CTX.beginPath(); CTX.arc(-42 * s, -64 * s, 22 * s, 0, 7); CTX.fill();
+      CTX.fillStyle = '#e8dcb8';
+      for (const dir of [-1, 1]) { CTX.beginPath(); CTX.moveTo(dir * 40 * s - 6, -84 * s); CTX.lineTo(dir * 46 * s, -104 * s); CTX.lineTo(dir * 34 * s, -86 * s); CTX.fill(); }
+      eyes(2, 16, -68 * s, 6 * s);
+      CTX.fillStyle = '#fff'; CTX.beginPath(); CTX.arc(-52 * s, -58 * s, 4 * s, 0, 7); CTX.arc(-36 * s, -58 * s, 4 * s, 0, 7); CTX.fill();
+      break;
+    }
+    case 'eye': {
+      const hov = Math.sin(t * 2.4) * 10;
+      CTX.translate(0, hov);
+      CTX.fillStyle = c; CTX.beginPath(); CTX.arc(0, -70 * s, 34 * s, 0, 7); CTX.fill();
+      CTX.fillStyle = '#fff'; CTX.beginPath(); CTX.arc(0, -70 * s, 22 * s, 0, 7); CTX.fill();
+      CTX.fillStyle = '#1a1a2a'; CTX.beginPath(); CTX.arc(Math.sin(t * 1.8) * 6, -70 * s, 10 * s, 0, 7); CTX.fill();
+      for (const dir of [-1, 1]) { CTX.strokeStyle = c; CTX.lineWidth = 4; CTX.beginPath(); CTX.moveTo(dir * 30 * s, -74 * s); CTX.quadraticCurveTo(dir * 50 * s, -96 * s + Math.sin(t * 10) * 8, dir * 42 * s, -104 * s); CTX.stroke(); }
+      break;
+    }
+    case 'gear': {
+      CTX.rotate(t * 0.8);
+      CTX.fillStyle = c;
+      for (let i = 0; i < 8; i++) { const a = i / 8 * 6.283; CTX.save(); CTX.rotate(a); CTX.fillRect(-6 * s, -66 * s, 12 * s, 16 * s); CTX.restore(); }
+      CTX.beginPath(); CTX.arc(0, -50 * s, 42 * s, 0, 7); CTX.fill();
+      CTX.fillStyle = '#fff'; CTX.beginPath(); CTX.arc(0, -50 * s, 20 * s, 0, 7); CTX.fill();
+      CTX.fillStyle = '#1a1a2a'; CTX.beginPath(); CTX.arc(0, -50 * s, 9 * s, 0, 7); CTX.fill();
+      CTX.rotate(-t * 0.8);
+      break;
+    }
+    case 'snake': {
+      CTX.strokeStyle = c; CTX.lineCap = 'round';
+      for (let i = 0; i < 9; i++) {
+        const px = Math.sin(t * 3 - i * 0.7) * (10 + i * 2) - i * 6;
+        const py = -12 - i * 9;
+        CTX.lineWidth = Math.max(4, 26 - i * 2.4);
+        CTX.beginPath(); CTX.moveTo(px + 6, py); CTX.lineTo(px, py + 2); CTX.stroke();
+      }
+      CTX.fillStyle = c; CTX.beginPath(); CTX.arc(Math.sin(t * 3) * 10, -96, 15, 0, 7); CTX.fill();
+      eyes(2, 12, -98, 5);
+      break;
+    }
+    case 'void': {
+      const hov = Math.sin(t * 1.6) * 8;
+      CTX.translate(0, hov);
+      const au = CTX.createRadialGradient(0, -60 * s, 10, 0, -60 * s, 70 * s);
+      au.addColorStop(0, 'rgba(120,80,220,.5)'); au.addColorStop(1, 'rgba(120,80,220,0)');
+      CTX.fillStyle = au; CTX.beginPath(); CTX.arc(0, -60 * s, 70 * s, 0, 7); CTX.fill();
+      CTX.fillStyle = '#1a1230'; CTX.beginPath(); CTX.arc(0, -60 * s, 32 * s, 0, 7); CTX.fill();
+      eyes(3, 30, -64 * s, 7 * s);
+      for (let i = 0; i < 5; i++) { const a2 = t * 2 + i * 1.26; CTX.fillStyle = '#b090ff'; CTX.beginPath(); CTX.arc(Math.cos(a2) * 48, -60 * s + Math.sin(a2) * 20, 3, 0, 7); CTX.fill(); }
+      break;
+    }
+    case 'tree': { // BOSS 迷雾树妖
+      CTX.fillStyle = '#6a4a2a'; CTX.beginPath(); CTX.moveTo(-30 * s, 0); CTX.quadraticCurveTo(-20 * s, -70 * s, -26 * s, -120 * s); CTX.lineTo(26 * s, -120 * s); CTX.quadraticCurveTo(20 * s, -70 * s, 30 * s, 0); CTX.fill();
+      CTX.strokeStyle = '#6a4a2a'; CTX.lineWidth = 12 * s;
+      CTX.beginPath(); CTX.moveTo(-24 * s, -96 * s); CTX.quadraticCurveTo(-80 * s, -110 * s + Math.sin(t * 2) * 10, -96 * s, -70 * s); CTX.moveTo(24 * s, -96 * s); CTX.quadraticCurveTo(80 * s, -110 * s + Math.sin(t * 2 + 1) * 10, 96 * s, -70 * s); CTX.stroke();
+      CTX.fillStyle = '#3e7a30';
+      CTX.beginPath(); CTX.ellipse(0, -150 * s, 96 * s, 56 * s, 0, 0, 7); CTX.fill();
+      eyes(2, 34, -104 * s, 11 * s);
+      CTX.strokeStyle = '#1a1a2a'; CTX.lineWidth = 4; CTX.beginPath(); CTX.arc(0, -80 * s, 18 * s, 0.2, 2.94); CTX.stroke();
+      CTX.fillStyle = '#e05e5e'; CTX.beginPath(); CTX.arc(-6 * s, -70 * s, 4 * s, 0, 7); CTX.arc(8 * s, -72 * s, 4 * s, 0, 7); CTX.fill();
+      break;
+    }
+    case 'kraken': { // BOSS 深海海妖
+      const hov = Math.sin(t * 1.8) * 8;
+      CTX.translate(0, hov);
+      CTX.fillStyle = c;
+      CTX.beginPath(); CTX.arc(0, -100 * s, 56 * s, Math.PI, 0); CTX.lineTo(56 * s, -84 * s); CTX.lineTo(-56 * s, -84 * s); CTX.fill();
+      CTX.strokeStyle = c; CTX.lineCap = 'round';
+      for (let i = -3; i <= 3; i++) { CTX.lineWidth = 13 * s; CTX.beginPath(); CTX.moveTo(i * 16 * s, -86 * s); CTX.quadraticCurveTo(i * 20 * s + Math.sin(t * 3 + i) * 18, -46, i * 22 * s + Math.sin(t * 3 + i) * 26, -4); CTX.stroke(); }
+      eyes(2, 34, -112 * s, 12 * s);
+      CTX.fillStyle = '#e05e5e'; CTX.beginPath(); CTX.moveTo(-20 * s, -84 * s); CTX.lineTo(-14 * s, -70 * s); CTX.lineTo(-8 * s, -84 * s); CTX.moveTo(20 * s, -84 * s); CTX.lineTo(14 * s, -70 * s); CTX.lineTo(8 * s, -84 * s); CTX.fill();
+      break;
+    }
+    case 'dragon': { // BOSS 双头龙/风暴龙
+      const fl = Math.sin(t * 4) * 0.4;
+      CTX.fillStyle = c;
+      CTX.beginPath(); CTX.ellipse(0, -80 * s, 62 * s, 44 * s, 0, 0, 7); CTX.fill();
+      for (const dir of [-1, 1]) {
+        CTX.beginPath(); CTX.moveTo(0, -100 * s);
+        CTX.quadraticCurveTo(dir * 110 * s, -170 * s - fl * 40, dir * 150 * s, -60 * s - fl * 30);
+        CTX.quadraticCurveTo(dir * 90 * s, -70 * s, 0, -70 * s); CTX.fill();
+      }
+      for (const dir of [-1, 1]) {
+        CTX.beginPath(); CTX.ellipse(dir * 56 * s, -120 * s, 22 * s, 17 * s, dir * 0.4, 0, 7); CTX.fill();
+        CTX.fillStyle = '#e8dcb8'; CTX.beginPath(); CTX.moveTo(dir * 66 * s, -118 * s); CTX.lineTo(dir * 84 * s, -114 * s); CTX.lineTo(dir * 66 * s, -110 * s); CTX.fill();
+        CTX.fillStyle = '#fff'; CTX.beginPath(); CTX.arc(dir * 54 * s, -124 * s, 5 * s, 0, 7); CTX.fill();
+        CTX.fillStyle = '#1a1a2a'; CTX.beginPath(); CTX.arc(dir * 56 * s, -124 * s, 2.6 * s, 0, 7); CTX.fill();
+        CTX.fillStyle = c;
+      }
+      CTX.fillStyle = '#e8dcb8'; CTX.beginPath(); CTX.moveTo(-16 * s, -60 * s); CTX.lineTo(0, -34 * s); CTX.lineTo(16 * s, -60 * s); CTX.fill();
+      break;
+    }
+    case 'time': { // BOSS 时之沙皇
+      const hov = Math.sin(t * 2) * 8;
+      CTX.translate(0, hov);
+      CTX.fillStyle = c; CTX.lineWidth = 0;
+      CTX.beginPath(); CTX.moveTo(-46 * s, -140 * s); CTX.lineTo(46 * s, -140 * s); CTX.lineTo(-46 * s, -40 * s); CTX.lineTo(46 * s, -40 * s); CTX.closePath(); CTX.fill();
+      CTX.fillStyle = 'rgba(255,230,160,.9)';
+      const lvl = 0.5 + Math.sin(t) * 0.2;
+      CTX.beginPath(); CTX.moveTo(-34 * s, -52 * s); CTX.lineTo(34 * s, -52 * s); CTX.lineTo(24 * s, -100 * s); CTX.lineTo(-24 * s, -100 * s); CTX.fill();
+      CTX.fillStyle = c;
+      CTX.beginPath(); CTX.moveTo(-46 * s, -140 * s); CTX.lineTo(46 * s, -140 * s); CTX.lineTo(-46 * s, -40 * s); CTX.lineTo(46 * s, -40 * s); CTX.closePath();
+      CTX.strokeStyle = '#8a6a2a'; CTX.lineWidth = 8; CTX.stroke();
+      CTX.fillStyle = '#ffe14d';
+      for (let i = 0; i < 4; i++) { const a2 = i / 4 * 6.283 + t; CTX.beginPath(); CTX.moveTo(Math.cos(a2) * 60 * s, -90 * s + Math.sin(a2) * 24 * s - 3, 0); CTX.arc(Math.cos(a2) * 60 * s, -90 * s + Math.sin(a2) * 24 * s, 6, 0, 7); CTX.fill(); }
+      CTX.fillStyle = '#fff'; CTX.beginPath(); CTX.arc(-14 * s, -160 * s, 9 * s, 0, 7); CTX.arc(14 * s, -160 * s, 9 * s, 0, 7); CTX.fill();
+      CTX.fillStyle = '#1a1a2a'; CTX.beginPath(); CTX.arc(-12 * s, -160 * s, 4 * s, 0, 7); CTX.arc(16 * s, -160 * s, 4 * s, 0, 7); CTX.fill();
+      break;
+    }
+    case 'witch': { // BOSS 冰原女巫
+      const hov = Math.sin(t * 2.2) * 7;
+      CTX.translate(0, hov);
+      CTX.fillStyle = c;
+      CTX.beginPath(); CTX.moveTo(0, -66 * s); CTX.quadraticCurveTo(-64 * s, -20, -40 * s, 0); CTX.lineTo(40 * s, 0); CTX.quadraticCurveTo(64 * s, -20, 0, -66 * s); CTX.fill();
+      CTX.fillStyle = '#e8ecf4'; CTX.beginPath(); CTX.arc(0, -84 * s, 20 * s, 0, 7); CTX.fill();
+      eyes(2, 16, -86 * s, 6 * s);
+      CTX.fillStyle = '#3a2a6e';
+      CTX.beginPath(); CTX.moveTo(-34 * s, -96 * s); CTX.lineTo(34 * s, -96 * s); CTX.lineTo(0, -170 * s); CTX.closePath(); CTX.fill();
+      CTX.fillStyle = '#ffe14d'; CTX.beginPath(); CTX.arc(0, -150 * s, 5 * s, 0, 7); CTX.fill();
+      CTX.strokeStyle = '#c9e8ff'; CTX.lineWidth = 6 * s; CTX.beginPath(); CTX.moveTo(44 * s, -40 * s); CTX.lineTo(64 * s, -120 * s); CTX.stroke();
+      CTX.fillStyle = '#9ad8ff'; CTX.beginPath(); CTX.arc(64 * s, -124 * s, 12 * s, 0, 7); CTX.fill();
+      break;
+    }
+    case 'chaos': { // FINAL BOSS 混沌之主
+      const hov = Math.sin(t * 1.5) * 9;
+      CTX.translate(0, hov);
+      const au = CTX.createRadialGradient(0, -100 * s, 20, 0, -100 * s, 150 * s);
+      au.addColorStop(0, 'rgba(176,74,224,.55)'); au.addColorStop(1, 'rgba(176,74,224,0)');
+      CTX.fillStyle = au; CTX.beginPath(); CTX.arc(0, -100 * s, 150 * s, 0, 7); CTX.fill();
+      CTX.fillStyle = '#1c1030'; CTX.beginPath(); CTX.arc(0, -100 * s, 74 * s, 0, 7); CTX.fill();
+      CTX.fillStyle = c; CTX.beginPath(); CTX.arc(0, -100 * s, 62 * s, 0, 7); CTX.fill();
+      eyes(1, 0, -108 * s, 22 * s);
+      eyes(2, 60, -76 * s, 9 * s); eyes(2, 60, -126 * s, 8 * s);
+      for (let i = 0; i < 6; i++) {
+        const a2 = t * 1.6 + i / 6 * 6.283;
+        const sxp = Math.cos(a2) * 110 * s, syp = -100 * s + Math.sin(a2) * 40 * s;
+        CTX.save(); CTX.translate(sxp, syp); CTX.rotate(a2 * 2);
+        CTX.fillStyle = '#d4b0ff'; CTX.fillRect(-7, -14, 14, 28);
+        CTX.restore();
+      }
+      CTX.fillStyle = '#ffe14d';
+      CTX.beginPath(); CTX.moveTo(-40 * s, -150 * s); CTX.lineTo(-28 * s, -178 * s); CTX.lineTo(-12 * s, -156 * s); CTX.lineTo(0, -182 * s); CTX.lineTo(12 * s, -156 * s); CTX.lineTo(28 * s, -178 * s); CTX.lineTo(40 * s, -150 * s); CTX.fill();
+      break;
+    }
+  }
+  CTX.restore();
+}
+// ============ 题目气泡 ============
+function wrapLines(text, maxW, font) {
+  CTX.font = font;
+  const out = [];
+  let line = '';
+  for (const ch of text) {
+    if (CTX.measureText(line + ch).width > maxW && line) { out.push(line); line = ch; }
+    else line += ch;
+  }
+  if (line) out.push(line);
+  return out;
+}
+function drawBubble(cx, topY, q, t, maxRight) {
+  const font = '900 30px "Segoe UI","Microsoft YaHei",sans-serif';
+  const lines = wrapLines(q.t, 560, font);
+  const bw = Math.min(600, Math.max(...lines.map(l => { CTX.font = font; return CTX.measureText(l).width; })) + 56);
+  const bh = lines.length * 40 + 30;
+  let bx = cx - bw / 2;
+  bx = clamp(bx, 30, (maxRight || Wd - 30) - bw);
+  const by = topY;
+  // 尾巴
+  CTX.fillStyle = '#fff';
+  CTX.beginPath(); CTX.moveTo(bx + bw * 0.3, by + bh); CTX.lineTo(bx + bw * 0.3 + 26, by + bh); CTX.lineTo(bx + bw * 0.3 + 4, by + bh + 22); CTX.fill();
+  let border = B ? (B.w.accent || '#8a5a2a') : '#8a5a2a';
+  if (B && B.phase === 'after') border = B.lastRight ? '#9ade54' : '#e05e5e';
+  rr(bx, by, bw, bh, 16);
+  CTX.fillStyle = 'rgba(255,255,255,.97)'; CTX.fill();
+  CTX.strokeStyle = border; CTX.lineWidth = 5; CTX.stroke();
+  CTX.fillStyle = '#2a2313'; CTX.font = font; CTX.textAlign = 'left'; CTX.textBaseline = 'middle';
+  lines.forEach((l, i) => CTX.fillText(l, bx + 28, by + 31 + i * 40));
+  return { bx, by, bw, bh };
+}
+// ============ HUD ============
+function drawHUD() {
+  // 左上：勇者状态
+  rr(18, 16, 350, 86, 14); CTX.fillStyle = 'rgba(10,18,8,.72)'; CTX.fill();
+  CTX.strokeStyle = '#8a5a2a'; CTX.lineWidth = 3; CTX.stroke();
+  // 头像
+  CTX.fillStyle = '#ffd9b0'; CTX.beginPath(); CTX.arc(58, 58, 24, 0, 7); CTX.fill();
+  CTX.fillStyle = '#2a4aa0'; CTX.beginPath(); CTX.moveTo(32, 42); CTX.lineTo(84, 42); CTX.lineTo(58, 12); CTX.closePath(); CTX.fill();
+  CTX.fillStyle = '#2a2a2a'; CTX.beginPath(); CTX.arc(51, 58, 2.6, 0, 7); CTX.arc(65, 58, 2.6, 0, 7); CTX.fill();
+  const hpPct = B.hero.hp / B.hero.max;
+  const title = B.endless ? '无尽挑战者' : `Lv.${SV.lv} ${heroTitle(SV.lv)}`;
+  CTX.fillStyle = '#ffe14d'; CTX.font = '900 17px "Microsoft YaHei"'; CTX.textAlign = 'left'; CTX.textBaseline = 'alphabetic';
+  CTX.fillText(title, 96, 40);
+  rr(96, 50, 210, 18, 9);
+  CTX.fillStyle = 'rgba(0,0,0,.55)'; CTX.fill();
+  const hg = CTX.createLinearGradient(97, 0, 305, 0);
+  if (hpPct > 0.5) { hg.addColorStop(0, '#9ade54'); hg.addColorStop(1, '#55a326'); }
+  else if (hpPct > 0.25) { hg.addColorStop(0, '#ffd94d'); hg.addColorStop(1, '#e09526'); }
+  else { hg.addColorStop(0, '#ff8a5e'); hg.addColorStop(1, '#d03a1a'); }
+  rr(97, 51, Math.max(4, 208 * hpPct), 16, 8); CTX.fillStyle = hg; CTX.fill();
+  CTX.fillStyle = '#fff'; CTX.font = '900 13px Consolas';
+  CTX.fillText(`${B.hero.hp}/${B.hero.max}`, 150, 64);
+  let sx = 96;
+  for (let i = 0; i < B.hero.shield; i++) { CTX.font = '20px serif'; CTX.fillText('🛡', sx, 92); sx += 26; }
+  if (sx > 96) { CTX.font = '900 13px "Microsoft YaHei"'; CTX.fillStyle = '#8ad4ff'; CTX.fillText('×格挡', sx + 2, 90); }
+  // 顶部中央：关卡信息
+  const center = B.endless ? `♾ 无尽模式 · 连对 ${B.streak}` : `第 ${B.n} 关 · ${B.L.t}`;
+  CTX.font = '900 20px "Microsoft YaHei"'; CTX.textAlign = 'center';
+  CTX.fillStyle = 'rgba(0,0,0,.45)'; rr(Wd / 2 - 280, 16, 560, 40, 12); CTX.fill();
+  CTX.fillStyle = '#ffe14d'; CTX.fillText(center, Wd / 2, 43);
+  // 进度点 / BOSS 血条
+  if (B.boss) {
+    const bo = B.boss, name = B.w.boss.n;
+    const bx = Wd / 2 - 270, by = 68;
+    rr(bx, by, 540, 54, 12); CTX.fillStyle = 'rgba(10,18,8,.72)'; CTX.fill(); CTX.strokeStyle = '#6a2a1a'; CTX.lineWidth = 3; CTX.stroke();
+    CTX.fillStyle = '#ffce7a'; CTX.font = '900 17px "Microsoft YaHei"'; CTX.textAlign = 'left';
+    CTX.fillText(`👹 ${name}`, bx + 14, by + 24);
+    // 血条
+    const segW = 508 / bo.max;
+    for (let i = 0; i < bo.max; i++) {
+      rr(bx + 17 + i * segW, by + 32, segW - 3, 14, 4);
+      CTX.fillStyle = i < bo.hp ? '#e05e5e' : 'rgba(255,255,255,.14)'; CTX.fill();
+    }
+    // 蓄力条
+    rr(bx + 17, by + 47, 508 * bo.charge, 4, 2);
+    CTX.fillStyle = bo.charge > 0.75 ? '#ff3a1a' : '#ff9e3e'; CTX.fill();
+    if (bo.charge > 0.75) { CTX.fillStyle = '#ff7a5e'; CTX.font = '900 14px "Microsoft YaHei"'; CTX.textAlign = 'right'; CTX.fillText('⚠ 大招将至，答对可打断！', bx + 524, by + 24); }
+  } else {
+    const n = B.endless ? Math.min(B.qi + 6, 20) : B.L.n;
+    const dots = [];
+    for (let i = 0; i < n; i++) dots.push(i);
+    const dw = Math.min(34, 560 / n);
+    CTX.save(); CTX.textAlign = 'center';
+    dots.forEach(i => {
+      const x = Wd / 2 + (i - (n - 1) / 2) * dw;
+      CTX.beginPath(); CTX.arc(x, 74, dw * 0.32, 0, 7);
+      const r = B.res[i];
+      CTX.fillStyle = r === 'r' ? '#9ade54' : r === 'w' ? '#e06a5e' : i === B.qi ? '#ffe14d' : 'rgba(255,255,255,.28)';
+      CTX.fill();
+      if (i === B.qi) { CTX.strokeStyle = '#fff'; CTX.lineWidth = 2; CTX.stroke(); }
+    });
+    CTX.restore();
+  }
+  // 右上：金币 + 连击
+  rr(Wd - 250, 16, 232, 86, 14); CTX.fillStyle = 'rgba(10,18,8,.72)'; CTX.fill();
+  CTX.strokeStyle = '#8a5a2a'; CTX.lineWidth = 3; CTX.stroke();
+  CTX.font = '900 26px serif'; CTX.textAlign = 'left'; CTX.fillText('🪙', Wd - 236, 48);
+  CTX.fillStyle = '#ffd94d'; CTX.font = '900 22px "Microsoft YaHei"';
+  const pend = Math.floor((SV.gold + B.goldRun * goldMult()));
+  CTX.fillText(String(pend), Wd - 196, 46);
+  if (B.hero.combo > 1) {
+    const hot = B.hero.combo >= comboNeed();
+    CTX.font = '900 20px serif'; CTX.fillText(hot ? '🔥' : '✨', Wd - 234, 86);
+    CTX.font = `900 ${hot ? 24 : 19}px "Microsoft YaHei"`;
+    CTX.fillStyle = hot ? '#ffb05e' : '#e8dfc6';
+    CTX.fillText(`连击 ×${B.hero.combo}${hot ? ' 双倍伤害！' : ''}`, Wd - 196, 88);
+  }
+}
+// ============ 主绘制 ============
+const MENU_DECO = buildDeco();
+function render(t) {
+  CTX.save();
+  if (VIEW.mode === 'battle' || VIEW.mode === 'result') {
+    const sh = B ? B.shake : 0;
+    if (sh > 0) CTX.translate(ri(-sh, sh) * 0.5, ri(-sh, sh) * 0.5);
+    drawScene(B.w, t);
+    drawPortal(t, B.w.accent);
+    // BOSS 或 敌人
+    if (B.boss && B.phase !== 'bossdie') {
+      drawMonster(B.w.boss, BOSS_X, GROUND_Y, t, { boss: true, flash: B.boss.hitFlash > 0 });
+      const q = currentQ();
+      if (q && !B.over) drawBubble(BOSS_X, 200, q, t, 930);
+    }
+    if (B.enemy) {
+      const e = B.enemy;
+      CTX.save();
+      if (e.x > PORTAL_X - 20) CTX.globalAlpha = clamp((SPAWN_X + 20 - e.x) / 70, 0.15, 1); // 从传送门钻出
+      if (e.state === 'die') { const p = e.dieT / 0.5; CTX.globalAlpha = 1 - p; CTX.translate(0, -p * 60); CTX.rotate(p * 1.2); }
+      if (e.state === 'atk') { const p = Math.min(1, e.t / 0.4); CTX.translate(-p * 90, -Math.sin(p * Math.PI) * 50); }
+      drawMonster(e.kind, e.x, GROUND_Y, t, { flash: e.hitFlash > 0 });
+      CTX.restore();
+      const q = currentQ();
+      if (q && (e.state === 'walk') && !B.over) {
+        drawBubble(clamp(e.x, 400, 640), 170, q, t, 930);
+      }
+    }
+    drawHero(t);
+    // 金币
+    for (const c of B.coins) {
+      CTX.font = '22px serif'; CTX.textAlign = 'center'; CTX.globalAlpha = clamp(c.life, 0, 1);
+      CTX.fillText('🪙', c.x, c.y); CTX.globalAlpha = 1;
+    }
+    // 火球
+    for (const p of B.projs) {
+      const k = clamp(p.t / p.dur, 0, 1);
+      const x = lerp(p.x, p.tx, k), y = lerp(p.y, p.ty, k) - Math.sin(k * Math.PI) * 60;
+      const fg = CTX.createRadialGradient(x, y, 2, x, y, 26);
+      fg.addColorStop(0, '#fff8c0'); fg.addColorStop(0.4, '#ffd94d'); fg.addColorStop(1, 'rgba(255,140,40,0)');
+      CTX.fillStyle = fg; CTX.beginPath(); CTX.arc(x, y, 26, 0, 7); CTX.fill();
+      CTX.fillStyle = '#fff'; CTX.beginPath(); CTX.arc(x - 4, y - 4, 5, 0, 7); CTX.fill();
+    }
+    // 粒子
+    for (const p of B.parts) {
+      CTX.globalAlpha = clamp(p.life, 0, 1);
+      CTX.fillStyle = p.c; CTX.beginPath(); CTX.arc(p.x, p.y, p.r, 0, 7); CTX.fill();
+    }
+    CTX.globalAlpha = 1;
+    // 飘字
+    for (const tx of B.texts) {
+      CTX.globalAlpha = clamp(tx.life, 0, 1);
+      CTX.font = `900 ${tx.s}px "Microsoft YaHei"`; CTX.textAlign = 'center';
+      CTX.strokeStyle = 'rgba(0,0,0,.6)'; CTX.lineWidth = 4; CTX.strokeText(tx.txt, tx.x, tx.y);
+      CTX.fillStyle = tx.c; CTX.fillText(tx.txt, tx.x, tx.y);
+    }
+    CTX.globalAlpha = 1;
+    drawHUD();
+    if (B.flashT > 0) { CTX.fillStyle = B.flashC; CTX.fillRect(0, 0, Wd, Ht); }
+    // 暗角
+    const vg = CTX.createRadialGradient(Wd / 2, Ht / 2, Ht * 0.45, Wd / 2, Ht / 2, Ht * 0.85);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.4)');
+    CTX.fillStyle = vg; CTX.fillRect(0, 0, Wd, Ht);
+    if (VIEW.paused) { CTX.fillStyle = 'rgba(0,0,0,.5)'; CTX.fillRect(0, 0, Wd, Ht); }
+  } else {
+    // 菜单/地图背景：随进度变换的世界场景
+    const wi = clamp(Math.floor((SV.lv - 1) / 4), 0, 8);
+    const w = WORLDS[wi];
+    const savedB = B; B = null;
+    drawScene(w, t * 0.4);
+    B = savedB;
+    const vg = CTX.createRadialGradient(Wd / 2, Ht / 2, Ht * 0.4, Wd / 2, Ht / 2, Ht * 0.9);
+    vg.addColorStop(0, 'rgba(0,0,0,.1)'); vg.addColorStop(1, 'rgba(0,0,0,.55)');
+    CTX.fillStyle = vg; CTX.fillRect(0, 0, Wd, Ht);
+  }
+  CTX.restore();
+}
+
+// ============================================================
+//  UI 流程
+// ============================================================
+const PANELS = ['menu', 'map', 'shop', 'book', 'result', 'story', 'ending', 'pause', 'pad', 'choices', 'btnExit'];
+function hideAllPanels() { PANELS.forEach(p => show(p, false)); }
+let shopBack = 'map', bookBack = 'menu', storyNext = 1, resetArmed = false, bookArmed = false;
+
+function gotoMenu() {
+  VIEW.mode = 'menu'; VIEW.paused = false; B = null;
+  hideAllPanels(); bgmStop();
+  $('btnContinue').textContent = SV.lv === 1 ? '▶ 开始冒险' : `▶ 继续冒险（Lv.${Math.min(SV.lv, 36)} · ${heroTitle(SV.lv)}）`;
+  show('btnEndless', SV.lv > 36);
+  show('menu', true);
+}
+function gotoMap() {
+  VIEW.mode = 'map'; VIEW.paused = false; B = null;
+  hideAllPanels(); bgmStop();
+  renderMap();
+  show('map', true);
+}
+function renderMap() {
+  $('heroChip').textContent = SV.lv > 36 ? `Lv.36 数学大师（已满级）` : `Lv.${SV.lv} ${heroTitle(SV.lv)}`;
+  $('mapGold').textContent = SV.gold;
+  show('btnEndlessMap', SV.lv > 36);
+  const box = $('mapWorlds'); box.innerHTML = '';
+  WORLDS.forEach((w, wi) => {
+    const card = document.createElement('div'); card.className = 'wcard';
+    const nm = document.createElement('div'); nm.className = 'wname';
+    nm.innerHTML = `${wi + 1}. ${w.name}<span class="grade">${w.grade}</span>`;
+    card.appendChild(nm);
+    const lvls = document.createElement('div'); lvls.className = 'lvls';
+    for (let i = 0; i < 4; i++) {
+      const n = wi * 4 + i + 1;
+      const btn = document.createElement('button');
+      const locked = n > SV.lv;
+      btn.className = 'lvbtn' + (locked ? ' locked' : '') + (i === 3 ? ' boss' : '') + (n === SV.lv ? ' cur' : '');
+      const st = SV.stars[n] || 0;
+      btn.innerHTML = `${i === 3 ? '👹' : ''}${n}<div class="stars">${st ? '★'.repeat(st) + '☆'.repeat(3 - st) : (locked ? '🔒' : '')}</div>`;
+      if (!locked) btn.onclick = () => { sfx('click'); tryStartLevel(n); };
+      lvls.appendChild(btn);
+    }
+    card.appendChild(lvls);
+    box.appendChild(card);
+  });
+}
+function tryStartLevel(n) {
+  const w = LEVELS[n - 1].w;
+  if (n === w * 4 + 1 && SV.seenW <= w) {
+    const wd = WORLDS[w];
+    VIEW.mode = 'story'; hideAllPanels();
+    $('storyBadge').textContent = `世界${'一二三四五六七八九'[w]} · ${wd.name}（${wd.grade}）`;
+    $('storyTitle').textContent = LEVELS[w * 4].t.split(' · ')[0] + '…';
+    $('storyText').textContent = wd.story;
+    storyNext = n;
+    show('story', true);
+  } else startLevel(n);
+}
+// ============ 商店 ============
+const SHOPS = [
+  { k: 'hp', ico: '❤️', nm: '生命祝福', ds: l => `生命上限 +20（当前 +${l * 20}，共 ${100 + l * 20}）`, max: 5, cost: l => Math.floor(40 * Math.pow(1.9, l)) },
+  { k: 'sh', ico: '🛡️', nm: '守护结界', ds: l => `每关开始获得 ${l} 面护盾，自动格挡伤害`, max: 3, cost: l => 60 * Math.pow(2, l) },
+  { k: 't', ico: '⏳', nm: '时间沙漏', ds: l => `每题答题时间 +${l * 2} 秒`, max: 3, cost: l => 50 * Math.pow(2, l) },
+  { k: 'cb', ico: '🔥', nm: '连击大师', ds: l => `双倍伤害所需连击数：${[5, 4, 3][l]}`, max: 2, cost: l => 80 * Math.pow(2, l) },
+  { k: 'g', ico: '🪙', nm: '荣耀金币', ds: l => `金币获取 +${l * 25}%`, max: 2, cost: l => 70 * Math.pow(2, l) },
+];
+function openShop(back) {
+  shopBack = back || 'map';
+  VIEW.mode = 'shop'; hideAllPanels();
+  renderShop();
+  show('shop', true);
+}
+function renderShop() {
+  $('shopGold').textContent = SV.gold;
+  const box = $('shopRows'); box.innerHTML = '';
+  SHOPS.forEach(s => {
+    const l = SV.up[s.k], maxed = l >= s.max, cost = s.cost(l);
+    const row = document.createElement('div'); row.className = 'shoprow';
+    row.innerHTML = `<div class="ico">${s.ico}</div>
+      <div class="info"><div class="nm">${s.nm}</div><div class="ds">${s.ds(l)}</div>
+      <div class="dots">${Array.from({ length: s.max }, (_, i) => `<i class="${i < l ? 'on' : ''}"></i>`).join('')}</div></div>`;
+    const btn = document.createElement('button');
+    btn.className = 'btn small' + ((maxed || SV.gold < cost) ? ' dim' : '');
+    btn.textContent = maxed ? '已满级' : `🪙${cost} 强化`;
+    if (!maxed && SV.gold >= cost) btn.onclick = () => {
+      SV.gold -= cost; SV.up[s.k]++; storeSave(); sfx('up');
+      toast(`${s.nm} 强化成功！`);
+      renderShop();
+    };
+    row.appendChild(btn);
+    box.appendChild(row);
+  });
+}
+// ============ 错题本 ============
+function openBook(back) {
+  bookBack = back || 'menu';
+  VIEW.mode = 'book'; hideAllPanels();
+  renderBook();
+  show('book', true);
+}
+function renderBook() {
+  bookArmed = false; $('btnBookClear').textContent = '清空错题';
+  const box = $('bookRows'); box.innerHTML = '';
+  if (!SV.wrong.length) { box.innerHTML = '<div class="brow"><div class="qq" style="color:#9aa793">太棒了，还没有错题记录！</div></div>'; $('bookSub').textContent = '答错的题目会记录在这里，复习后再出发吧！'; return; }
+  $('bookSub').textContent = `共 ${SV.wrong.length} 条错题（最多保留 60 条）`;
+  SV.wrong.forEach(wr => {
+    const row = document.createElement('div'); row.className = 'brow';
+    row.innerHTML = `<span class="tag">第${wr.lv}关</span><div class="qq">${wr.t}</div><div class="aa">✔ ${wr.a}</div>`;
+    box.appendChild(row);
+  });
+}
+// ============ 结局 ============
+function showEnding() {
+  VIEW.mode = 'ending'; hideAllPanels();
+  const stars = Object.values(SV.stars).reduce((a, b) => a + b, 0);
+  $('endText').innerHTML = `你以 Lv.36「数学大师」之名走过了 9 大世界，<br>
+    从十以内加减一路修炼到二次函数与圆的殿堂。<br>
+    总星数 <b style="color:#ffe14d">${stars} / 108</b> 　错题本记录 <b style="color:#ffe14d">${SV.wrong.length}</b> 题<br><br>
+    🌀 无尽模式已解锁：全年级随机混题，看看你能连对多少题！`;
+  show('ending', true);
+  sfx('up');
+}
+// ============ 主循环 ============
+let lastT = 0;
+function loop(ts) {
+  const t = ts / 1000;
+  let dt = Math.min(0.05, t - (lastT || t)); lastT = t;
+  update(dt);
+  render(t);
+  requestAnimationFrame(loop);
+}
+// ============ 事件绑定 ============
+function bindUI() {
+  $('btnContinue').onclick = () => { sfx('click'); gotoMap(); };
+  $('btnEndless').onclick = () => { sfx('click'); startEndless(); };
+  $('btnEndless2').onclick = () => { sfx('click'); startEndless(); };
+  $('btnEndMap').onclick = () => { sfx('click'); gotoMap(); };
+  $('btnBook').onclick = () => { sfx('click'); openBook('menu'); };
+  $('btnBook2').onclick = () => { sfx('click'); openBook('map'); };
+  $('btnBookBack').onclick = () => { sfx('click'); bookBack === 'menu' ? gotoMenu() : gotoMap(); };
+  $('btnBookClear').onclick = () => {
+    if (!bookArmed) { bookArmed = true; $('btnBookClear').textContent = '确认清空？'; return; }
+    SV.wrong = []; storeSave(); renderBook(); toast('错题本已清空');
+  };
+  $('btnShopMenu').onclick = () => { sfx('click'); openShop('menu'); };
+  $('btnShop').onclick = () => { sfx('click'); openShop('map'); };
+  $('btnShopBack').onclick = () => { sfx('click'); shopBack === 'menu' ? gotoMenu() : gotoMap(); };
+  $('btnBackMenu').onclick = () => { sfx('click'); gotoMenu(); };
+  $('btnEndlessMap').onclick = () => { sfx('click'); startEndless(); };
+  $('btnExit').onclick = () => { sfx('click'); togglePause(); };
+  $('btnPortal').onclick = () => { sfx('click'); location.href = 'index.html'; };
+  $('btnStoryGo').onclick = () => { sfx('click'); const n = storyNext; SV.seenW = Math.max(SV.seenW || 0, LEVELS[n - 1].w + 1); storeSave(); startLevel(n); };
+  $('btnNext').onclick = () => { sfx('click'); tryStartLevel(B.n + 1); };
+  $('btnRetry').onclick = () => { sfx('click'); B.endless ? startEndless() : startLevel(B.n); };
+  $('btnToMap').onclick = () => { sfx('click'); B.endless ? gotoMenu() : gotoMap(); };
+  $('btnResume').onclick = () => { sfx('click'); togglePause(); };
+  $('btnRestart').onclick = () => { sfx('click'); show('pause', false); VIEW.paused = false; B.endless ? startEndless() : startLevel(B.n); };
+  $('btnQuit').onclick = () => { sfx('click'); show('pause', false); VIEW.paused = false; B = null; gotoMap(); };
+  const updSet = () => {
+    $('btnSfx').textContent = SV.set.sfx ? '🔊 音效：开' : '🔇 音效：关';
+    $('btnBgm').textContent = SV.set.bgm ? '🎵 音乐：开' : '🎵 音乐：关';
+  };
+  $('btnSfx').onclick = () => { SV.set.sfx = SV.set.sfx ? 0 : 1; storeSave(); updSet(); sfx('click'); };
+  $('btnBgm').onclick = () => { SV.set.bgm = SV.set.bgm ? 0 : 1; storeSave(); updSet(); if (!SV.set.bgm) bgmStop(); else if (VIEW.mode === 'battle' && B) bgmStart(B.L.w); sfx('click'); };
+  $('btnReset').onclick = () => {
+    if (!resetArmed) { resetArmed = true; $('btnReset').textContent = '⚠ 再点一次确认重置'; return; }
+    clearSave(); storeSave(); resetArmed = false; $('btnReset').textContent = '🗑 重置进度';
+    gotoMenu(); toast('进度已重置');
+  };
+  updSet();
+  // 数字键盘
+  document.querySelectorAll('#padGrid .pk').forEach(b => {
+    b.addEventListener('click', () => padKey(b.dataset.k));
+  });
+  // 画布缩放
+  const fit = () => {
+    const s = Math.min(innerWidth / Wd, innerHeight / Ht);
+    const wrap = $('wrap');
+    wrap.style.transformOrigin = '50% 50%';
+    // 窄屏：把答题控件移出缩放容器并固定到视口，画布上移避开键盘；宽屏恢复居中
+    const narrow = innerWidth < 760;
+    wrap.style.top = narrow ? '70px' : '50%';
+    wrap.style.transform = narrow ? `translateX(-50%) scale(${s})` : `translate(-50%,-50%) scale(${s})`;
+    for (const id of ['pad', 'choices']) {
+      const el = $(id);
+      if (narrow && el.parentElement.id === 'ui') { document.body.appendChild(el); el.classList.add('mobile-pad'); }
+      else if (!narrow && el.parentElement === document.body) { $('ui').appendChild(el); el.classList.remove('mobile-pad'); }
+    }
+  };
+  window.addEventListener('resize', fit); fit();
+}
+
+// ============================================================
+//  测试钩子
+// ============================================================
+window.__math = {
+  get save() { return JSON.parse(JSON.stringify(SV)); },
+  get state() {
+    if (!B) return null;
+    const q = currentQ();
+    return {
+      mode: VIEW.mode, paused: VIEW.paused, level: B.endless ? 0 : B.n,
+      qi: B.qi, n: B.endless ? -1 : B.L.n, over: B.over, win: B.win,
+      hp: B.hero.hp, max: B.hero.max, shield: B.hero.shield, combo: B.hero.combo,
+      enemy: B.enemy ? { x: Math.round(B.enemy.x), state: B.enemy.state, t: +B.enemy.t.toFixed(2), struck: !!B.enemy.struck } : null,
+      boss: B.boss ? { hp: B.boss.hp, max: B.boss.max, charge: B.boss.charge } : null,
+      goldRun: B.goldRun, wrongCount: B.wrongCount, right: B.right,
+      q: q ? { t: q.t, k: q.k, a: q.k === 'ch' ? q.o[q.a] : q.a, src: q.src, opts: q.o } : null,
+    };
+  },
+  // 直接开始第 n 关（跳过剧情/地图）
+  start(n) { if (n >= 1 && n <= 36) { startLevel(n); return true; } return false; },
+  endless() { startEndless(); return true; },
+  // 提交当前题的正确/错误答案
+  solve() {
+    const q = currentQ(); if (!q || B.over) return false;
+    submit(q.k === 'ch' ? String(q.a) : q.a); return true;
+  },
+  fail() {
+    const q = currentQ(); if (!q || B.over) return false;
+    if (q.k === 'ch') { const w = (q.a + 1) % q.o.length; submit(String(w)); }
+    else submit(parseNum(q.a) === 0 ? '7' : '0');
+    return true;
+  },
+  submit(v) { submit(String(v)); return true; },
+  pad(k) { padKey(k); return true; },
+  // 快进 n 帧
+  pump(n, dt) { for (let i = 0; i < n; i++) update(dt || 1 / 60); return true; },
+  // 跳过当前题等待动画（立即进入下一题）
+  skipAnim() { if (B && B.lock && B.phase === 'after') { B.lockT = 0.01; return true; } return false; },
+  // 生成器全量审计：每个生成器跑 N 样本，校验可解性与格式
+  audit(N) {
+    N = N || 100;
+    const fails = [];
+    const ids = Object.keys(G);
+    for (const id of ids) {
+      for (let i = 0; i < N; i++) {
+        let q = null, err = '';
+        try { q = G[id](); } catch (e) { err = '异常:' + e.message; }
+        if (!err) {
+          if (!q || typeof q.t !== 'string' || !q.t) err = '题面缺失';
+          else if (q.k === 'ch') {
+            if (!Array.isArray(q.o) || q.o.length < 2) err = '选项不足2个';
+            else if (q.a < 0 || q.a >= q.o.length) err = '答案下标越界';
+            else if (new Set(q.o).size !== q.o.length) err = '选项重复';
+          } else {
+            if (parseNum(q.a) === null) err = '输入题答案无法解析:' + q.a;
+          }
+        }
+        if (err) { fails.push({ id, err, t: q && q.t, a: q && q.a }); break; }
+      }
+    }
+    return { total: ids.length, fails };
+  },
+  // 校验答案判分正确性（含等价分数/小数）
+  check(qa, val) { return isRight(qa, val); },
+  gold(n) { SV.gold += n; storeSave(); return SV.gold; },
+  unlockAll() {
+    for (let n = 1; n <= 36; n++) SV.stars[n] = 3;
+    SV.lv = 37; SV.seenW = 9; storeSave(); return true;
+  },
+  clearSave() { clearSave(); return true; },
+  // 测试辅助：向存档合并字段（不校验，仅自动化测试用）
+  patch(o) { Object.assign(SV, o); storeSave(); return true; },
+  gotoMap() { gotoMap(); return true; },
+  gotoMenu() { gotoMenu(); return true; },
+  openShop() { openShop('map'); return true; },
+  openBook() { openBook('map'); return true; },
+  buy(k) {
+    const s = SHOPS.find(x => x.k === k); if (!s) return false;
+    const l = SV.up[k]; if (l >= s.max || SV.gold < s.cost(l)) return false;
+    SV.gold -= s.cost(l); SV.up[k]++; storeSave(); return true;
+  },
+};
+
+// ============================================================
+//  启动
+// ============================================================
+try {
+  bindUI();
+  gotoMenu();
+  requestAnimationFrame(loop);
+} catch (e) {
+  window.__bootErr.push('启动失败: ' + (e && e.message));
+  try {
+    document.body.insertAdjacentHTML('beforeend',
+      `<div style="position:fixed;left:8px;bottom:8px;background:#500;color:#fff;padding:10px 14px;border-radius:8px;font:14px monospace;z-index:999">启动错误：${(e && e.message) || e}</div>`);
+  } catch (e2) { }
+}
+</script>
+</body>
+</html>
